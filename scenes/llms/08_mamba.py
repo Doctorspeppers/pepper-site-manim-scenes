@@ -125,6 +125,18 @@ def assert_no_overlap(a, b, label=""):
     )
 
 
+def assert_within(inner, outer, label=""):
+    """Fail loudly if `inner`'s bounding box is not fully contained within
+    `outer`'s — catches an element spilling past a drawn safe-area container
+    (e.g. safe_container()) even when it's still technically inside the raw
+    render frame, which reads as an overflow bug to a viewer regardless."""
+    i_l, i_r, i_t, i_b = inner.get_left()[0], inner.get_right()[0], inner.get_top()[1], inner.get_bottom()[1]
+    o_l, o_r, o_t, o_b = outer.get_left()[0], outer.get_right()[0], outer.get_top()[1], outer.get_bottom()[1]
+    assert i_l >= o_l - 0.05 and i_r <= o_r + 0.05 and i_b >= o_b - 0.05 and i_t <= o_t + 0.05, (
+        f"{label}: inner=[{i_l:.2f},{i_r:.2f}]x[{i_b:.2f},{i_t:.2f}] not within outer=[{o_l:.2f},{o_r:.2f}]x[{o_b:.2f},{o_t:.2f}]"
+    )
+
+
 def diagram_row(diagram, label_text, sub_text, label_color=WHITE, sub_color=GRAY_B,
                 label_font_size=18, sub_font_size=16, max_width=12.4, gap=0.6):
     """A generic 'small diagram + two-line caption' row: label stacked above
@@ -279,7 +291,11 @@ class MambaScene(Scene):
         area4 = safe_container()
         self.play(Create(area4))
 
-        dots2 = VGroup(*[Dot(radius=0.12, color=DECODER) for _ in tokens]).arrange(RIGHT, buff=1.5).shift(UP * 0.6)
+        # Raised and tightened relative to the first version — the dots/note/
+        # terminal stack previously ran past area4's own bottom edge (still
+        # inside the actual frame, but visibly spilling out of the drawn
+        # safe-area container, which defeats the point of drawing it).
+        dots2 = VGroup(*[Dot(radius=0.12, color=DECODER) for _ in tokens]).arrange(RIGHT, buff=1.5).shift(UP * 1.2)
         labels2 = VGroup(*[Text(t, font_size=16, color=WHITE).next_to(d, DOWN, buff=0.2) for t, d in zip(tokens, dots2)])
         widths = [6, 6, 1, 6]
         segs = VGroup()
@@ -289,7 +305,7 @@ class MambaScene(Scene):
         self.play(FadeIn(dots2), FadeIn(labels2))
         self.play(LaggedStart(*[Create(s) for s in segs], lag_ratio=0.3))
         sel_note = Text("'irrelevante' é filtrado — a espessura do fluxo de estado varia por conteúdo", font_size=16, color=MECHANISM)
-        sel_note.next_to(dots2, DOWN, buff=0.7)
+        sel_note.next_to(dots2, DOWN, buff=0.45)
         if sel_note.width > 12.4:
             sel_note.scale_to_fit_width(12.4)
         self.play(FadeIn(sel_note))
@@ -301,7 +317,8 @@ class MambaScene(Scene):
             "'gato', 'dormiu' -> Δ grande -> o estado é atualizado de verdade",
             "",
             "analogia: como um portão de entrada/esquecimento decidido pelo próprio token",
-        ], font_size=16, width=12.2).next_to(sel_note, DOWN, buff=0.4)
+        ], font_size=16, width=12.2).next_to(sel_note, DOWN, buff=0.3)
+        assert_within(term4, area4, "term4 vs area4 (selective SSM beat)")
         self.play(FadeIn(term4))
         self.wait(5)
 

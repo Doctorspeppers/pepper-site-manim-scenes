@@ -125,6 +125,18 @@ def assert_no_overlap(a, b, label=""):
     )
 
 
+def assert_within(inner, outer, label=""):
+    """Fail loudly if `inner`'s bounding box is not fully contained within
+    `outer`'s — catches an element spilling past a drawn safe-area container
+    (e.g. safe_container()) even when it's still technically inside the raw
+    render frame, which reads as an overflow bug to a viewer regardless."""
+    i_l, i_r, i_t, i_b = inner.get_left()[0], inner.get_right()[0], inner.get_top()[1], inner.get_bottom()[1]
+    o_l, o_r, o_t, o_b = outer.get_left()[0], outer.get_right()[0], outer.get_top()[1], outer.get_bottom()[1]
+    assert i_l >= o_l - 0.05 and i_r <= o_r + 0.05 and i_b >= o_b - 0.05 and i_t <= o_t + 0.05, (
+        f"{label}: inner=[{i_l:.2f},{i_r:.2f}]x[{i_b:.2f},{i_t:.2f}] not within outer=[{o_l:.2f},{o_r:.2f}]x[{o_b:.2f},{o_t:.2f}]"
+    )
+
+
 def diagram_row(diagram, label_text, sub_text, label_color=WHITE, sub_color=GRAY_B,
                 label_font_size=18, sub_font_size=16, max_width=12.4, gap=0.6):
     """A generic 'small diagram + two-line caption' row: label stacked above
@@ -206,8 +218,12 @@ class RWKVScene(Scene):
 
         n_values = [4, 8, 16]
         max_n = max(n_values)
-        baseline_y = container.get_bottom()[1] + 0.7
-        max_bar_height = container.height / 2 - 1.0
+        # Raised from container.bottom+0.7 to +1.5, specifically to leave
+        # real room below the "seq=n" bar labels for the legend line — it
+        # used to sit almost exactly on top of those labels (both landed
+        # around container.bottom+0.4), reading as overlapping text.
+        baseline_y = container.get_bottom()[1] + 1.5
+        max_bar_height = container.height / 2 - 1.8
         bars = VGroup()
         for i, n in enumerate(n_values):
             h = 0.4 + (max_bar_height - 0.4) * (n * n) / (max_n * max_n)
@@ -222,7 +238,9 @@ class RWKVScene(Scene):
         self.wait(3.5)
 
         double_note = Text("dobrar o contexto quadruplica o custo — o gargalo que motiva RWKV", font_size=16, color=GRAY_B)
-        double_note.move_to(container.get_bottom() + UP * 0.35)
+        double_note.next_to(bars, DOWN, buff=0.5)
+        assert_no_overlap(bars, double_note, "quadratic bars vs double_note legend")
+        assert_within(VGroup(bars, base_line, double_note), container, "quad beat content vs container")
         self.play(FadeIn(double_note))
         self.wait(3)
 

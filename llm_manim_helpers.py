@@ -125,6 +125,18 @@ def assert_no_overlap(a, b, label=""):
     )
 
 
+def assert_within(inner, outer, label=""):
+    """Fail loudly if `inner`'s bounding box is not fully contained within
+    `outer`'s — catches an element spilling past a drawn safe-area container
+    (e.g. safe_container()) even when it's still technically inside the raw
+    render frame, which reads as an overflow bug to a viewer regardless."""
+    i_l, i_r, i_t, i_b = inner.get_left()[0], inner.get_right()[0], inner.get_top()[1], inner.get_bottom()[1]
+    o_l, o_r, o_t, o_b = outer.get_left()[0], outer.get_right()[0], outer.get_top()[1], outer.get_bottom()[1]
+    assert i_l >= o_l - 0.05 and i_r <= o_r + 0.05 and i_b >= o_b - 0.05 and i_t <= o_t + 0.05, (
+        f"{label}: inner=[{i_l:.2f},{i_r:.2f}]x[{i_b:.2f},{i_t:.2f}] not within outer=[{o_l:.2f},{o_r:.2f}]x[{o_b:.2f},{o_t:.2f}]"
+    )
+
+
 def diagram_row(diagram, label_text, sub_text, label_color=WHITE, sub_color=GRAY_B,
                 label_font_size=18, sub_font_size=16, max_width=12.4, gap=0.6):
     """A generic 'small diagram + two-line caption' row: label stacked above
