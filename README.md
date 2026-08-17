@@ -151,12 +151,16 @@ cybersecurity deep dives) that need to hold several sub-topics on screen
 ### The pattern
 
 Instead of `self.play(FadeOut(beat_group))` between beats, a finished beat's
-diagram shrinks and slides into a fixed slot in a horizontal filmstrip along the
-bottom of the frame — it stays on screen, visible, for the rest of the video. The
-next beat builds in the workspace area above the strip. The video closes with a
-camera pull-back that frames the whole filmstrip at once: the "zoomout reveal."
-This is adapted from the camera technique 3blue1brown uses for build-up/reveal
-sequences in [3b1b/videos](https://github.com/3b1b/videos) (ManimGL's `self.frame`
+diagram shrinks and slides into a fixed slot in a horizontal filmstrip — but the
+camera stays fixed, tightly framed on just the workspace, for the whole main
+loop. Since the filmstrip's slots live outside that tight frame on purpose, a beat
+visibly **disappears off-screen** as it's archived, while the next beat builds in
+the now-empty workspace still in view. The video closes with one camera
+pull-back — the only camera move in the whole scene — that widens to frame the
+workspace *and* every archived slot at once: everything sent off-screen comes back
+into view together, all at the end. This is adapted from the camera technique
+3blue1brown uses for build-up/reveal sequences in
+[3b1b/videos](https://github.com/3b1b/videos) (ManimGL's `self.frame`
 target-animation idiom), translated to Manim Community's `MovingCameraScene` /
 `self.camera.frame`.
 
@@ -166,8 +170,8 @@ A format-2 scene copies **three** files verbatim, in this order, before its own
 `BEATS`/`class ...(MovingCameraScene)` code:
 
 1. `llm_manim_helpers.py` (colors, fonts, `callout`, `terminal_box`, `sized_box`, ...)
-2. `mosaic_manim_helpers.py` (`workspace_zone`, `mosaic_strip`, `archive_to_slot`,
-   `zoomout_reveal`, `assert_within_camera`)
+2. `mosaic_manim_helpers.py` (`workspace_zone`, `enter_workspace`, `mosaic_strip`,
+   `archive_to_slot`, `zoomout_reveal`, `assert_within_camera`)
 3. `chart_manim_helpers.py` (`styled_bar_chart`, `styled_axes`, `highlight_cell`,
    `dimension_brace`, `styled_code_block`) — only needed if the scene actually
    plots/tabulates something; still copied in full per the existing "copy the
@@ -193,13 +197,13 @@ class YourDeepDive(MovingCameraScene):
         workspace = workspace_zone()
         slots = mosaic_strip(n_slots=len(BEATS))
         assert_no_overlap(workspace, slots, "workspace vs mosaic strip")
+        enter_workspace(self.camera.frame, workspace)  # tight, fixed frame for the main loop
 
-        filled = []
-        for beat_fn in BEATS:
+        for i, beat_fn in enumerate(BEATS):
             beat_group = beat_fn(self, workspace)
-            archive_to_slot(self, self.camera.frame, beat_group, slots[len(filled)], workspace, filled)
+            archive_to_slot(self, beat_group, slots[i])  # beat shrinks off-screen into its slot
 
-        zoomout_reveal(self, self.camera.frame, VGroup(workspace, slots))
+        zoomout_reveal(self, self.camera.frame, VGroup(workspace, slots))  # everything comes back
 ```
 
 Choosing/reordering which beats go into a given video is exactly editing this
@@ -207,10 +211,23 @@ list — that's the "pick your scenes" mechanism for this format.
 
 **Anchor callouts to `workspace`, not to the frame edge.** `callout()` places its
 text via `.to_edge(UP, ...)`, which is computed against the *static* default
-frame — but format-2 scenes move/scale the camera every beat. Reposition each
-beat's callout relative to `workspace` instead (e.g. `.next_to(workspace, UP,
-buff=0.2)`), since `workspace` never moves in world coordinates even as the
-camera drifts around it. See `_anchor_callout()` in the reference demo.
+frame — but `enter_workspace()` puts the camera in a smaller, non-default frame
+before the first beat even builds. Reposition each beat's callout relative to
+`workspace` instead (e.g. just inside its top edge), since `workspace` never moves
+in world coordinates even as the camera later zooms out for the reveal. See
+`_anchor_callout()` in the reference demo — and note it nests the callout
+*inside* `workspace`'s top edge rather than stacking above it, which is what
+`assert_within_camera()` caught failing during actual verification (see
+"Verifying against the render service" below).
+
+**Camera resizes must use one uniform `.scale()`, never separate
+`.set(width=...)` / `.set(height=...)` calls.** Each of those rescales the whole
+frame proportionally to hit just the one dimension given, so a second call aimed
+at the other dimension silently undoes the first and leaves the frame's aspect
+ratio no longer matching the render's fixed pixel output — a real distortion bug.
+`enter_workspace()` and `zoomout_reveal()` both take the larger of the two
+required per-axis scale factors and apply it once, which hits both minimums
+without distorting anything.
 
 ### Why a horizontal strip along the bottom
 
@@ -223,12 +240,12 @@ diagrams to be re-authored narrower, fighting the width `terminal_box`/`callout`
 ### `assert_within_camera` vs `assert_on_screen`
 
 `assert_on_screen()` checks a group's bounding box against the *static*
-`config.frame_width`/`frame_height` — correct only for content built before the
-camera has moved (e.g. an opening title card). Once `archive_to_slot()` has run
-once, the camera is no longer in its default state, so every beat after the first
-should be checked with `assert_within_camera(group, scene.camera.frame, label)`
-instead. `assert_no_overlap()`/`assert_within()` need no camera-aware equivalent —
-they compare two groups to each other, independent of any frame.
+`config.frame_width`/`frame_height` — correct only for content built before
+`enter_workspace()` puts the camera in its (smaller, non-default) tight frame
+(e.g. an opening title card). Every beat after that should be checked with
+`assert_within_camera(group, scene.camera.frame, label)` instead.
+`assert_no_overlap()`/`assert_within()` need no camera-aware equivalent — they
+compare two groups to each other, independent of any frame.
 
 ### Reference example
 
