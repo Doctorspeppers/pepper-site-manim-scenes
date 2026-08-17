@@ -283,3 +283,61 @@ format-2 render:
    move in `archive_to_slot()`, or the final `zoomout_reveal()` cropping a
    filmstrip slot. Illegible text *inside an archived slot* is expected (see
    `archive_to_slot()`'s docstring) — not a bug.
+
+## Publishing a scene for real (applies to either format)
+
+Everything above renders against the internal render service directly — that
+service isn't reachable on its own from outside the Docker network, and
+nothing sent to it that way is saved anywhere. **The only path that actually
+publishes a persistent, embeddable video is the `render_manim_animation` MCP
+tool**, exposed by `pepper-site-back` at:
+
+```
+https://api.pepper.dev.br/mcp
+```
+
+This is OAuth 2.1 with dynamic client registration (Better Auth's `mcp`
+plugin) — no API key to manage. Any MCP-capable client (Claude Desktop, this
+assistant, etc.) connects to that URL, completes a normal OAuth login
+(redirects through `pepper.dev.br/auth`), and gets a session-scoped token.
+Logging in doesn't require an admin account, but every write the tool makes
+is gated by `assertAdmin` server-side — so only the site's actual admin
+account can use it to publish anything.
+
+Calling the tool:
+
+```json
+{
+  "name": "render_manim_animation",
+  "arguments": {
+    "name": "A short label for the scene library",
+    "sceneCode": "<the full contents of the scene .py file — every copied header plus the Scene subclass, exactly what you'd hand to `manim render` locally>",
+    "sceneClassName": "YourSceneName"
+  }
+}
+```
+
+`sceneCode` is not a snippet — it's the complete, self-contained file, same
+convention as everywhere else in this repo (copy every helper header
+verbatim, then the `class YourScene(...)` body underneath). Whatever you
+verified locally with `manim -qm ...` is exactly what to paste in here.
+
+What happens on the backend (`pepper-site-back/src/features/manim/
+manim.controller.ts`): it renders the scene through the same internal
+service documented above, stores the resulting mp4 as media, and returns a
+permanent public URL —
+
+```
+https://api.pepper.dev.br/v1/public/media/<uuid>
+```
+
+— safe to embed directly in a blog post as `<video src="..." controls>`. The
+scene itself is also saved to a re-editable "Manim scene library" (re-render
+with edited code later without losing the history), unlike the front-end's
+`/app/manim` **sandbox** page — that one only ever returns a browser-local
+blob URL and saves nothing; it's for quick previews, not publishing.
+
+This path was validated end-to-end by actually publishing
+`demos/lineage_of_llms_demo.py` through it (not just rendering it locally) —
+confirmed a real `https://api.pepper.dev.br/v1/public/media/...` URL
+returning `200 video/mp4`.
