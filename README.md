@@ -139,3 +139,130 @@ video with overlapping or clipped elements.
 4. The whole file — header plus scene body — is what gets sent to the render
    service as one `sceneCode` string. There is nothing else to package: no
    `requirements.txt`, no local imports, no build step.
+
+## Video format 2: accumulating-mosaic deep dives
+
+Everything above is video format 1 — one paper, one video, beats that fade out as
+they go. Format 2 is for **future, longer-form posts** (planned: LLM-internals and
+cybersecurity deep dives) that need to hold several sub-topics on screen
+*simultaneously* instead of one at a time. **It does not replace format 1** —
+`scenes/llms/` and `scenes/vlms/` keep working exactly as documented above.
+
+### The pattern
+
+Instead of `self.play(FadeOut(beat_group))` between beats, a finished beat's
+diagram shrinks and slides into a fixed slot in a horizontal filmstrip along the
+bottom of the frame — it stays on screen, visible, for the rest of the video. The
+next beat builds in the workspace area above the strip. The video closes with a
+camera pull-back that frames the whole filmstrip at once: the "zoomout reveal."
+This is adapted from the camera technique 3blue1brown uses for build-up/reveal
+sequences in [3b1b/videos](https://github.com/3b1b/videos) (ManimGL's `self.frame`
+target-animation idiom), translated to Manim Community's `MovingCameraScene` /
+`self.camera.frame`.
+
+### Header copy order
+
+A format-2 scene copies **three** files verbatim, in this order, before its own
+`BEATS`/`class ...(MovingCameraScene)` code:
+
+1. `llm_manim_helpers.py` (colors, fonts, `callout`, `terminal_box`, `sized_box`, ...)
+2. `mosaic_manim_helpers.py` (`workspace_zone`, `mosaic_strip`, `archive_to_slot`,
+   `zoomout_reveal`, `assert_within_camera`)
+3. `chart_manim_helpers.py` (`styled_bar_chart`, `styled_axes`, `highlight_cell`,
+   `dimension_brace`, `styled_code_block`) — only needed if the scene actually
+   plots/tabulates something; still copied in full per the existing "copy the
+   whole file, not just what you need" convention.
+
+This is the **only place in the repo that uses a moving camera**
+(`MovingCameraScene`) — every format-1 scene stays a plain `Scene`. That's a
+deliberate, scoped exception for format 2, not a new repo-wide rule.
+
+### Authoring convention: `BEATS`
+
+A format-2 scene defines its content as small functions,
+`beat_fn(scene, workspace) -> VGroup`, each building and animating in one beat's
+diagram using the existing shared helpers (colors, `terminal_box`, `callout`,
+etc.) and returning the finished group **without** fading it out. An ordered
+`BEATS` list drives `construct()`:
+
+```python
+BEATS = [beat_attention, beat_decoder_stack, beat_selective_state, beat_cost_comparison]
+
+class YourDeepDive(MovingCameraScene):
+    def construct(self):
+        workspace = workspace_zone()
+        slots = mosaic_strip(n_slots=len(BEATS))
+        assert_no_overlap(workspace, slots, "workspace vs mosaic strip")
+
+        filled = []
+        for beat_fn in BEATS:
+            beat_group = beat_fn(self, workspace)
+            archive_to_slot(self, self.camera.frame, beat_group, slots[len(filled)], workspace, filled)
+
+        zoomout_reveal(self, self.camera.frame, VGroup(workspace, slots))
+```
+
+Choosing/reordering which beats go into a given video is exactly editing this
+list — that's the "pick your scenes" mechanism for this format.
+
+**Anchor callouts to `workspace`, not to the frame edge.** `callout()` places its
+text via `.to_edge(UP, ...)`, which is computed against the *static* default
+frame — but format-2 scenes move/scale the camera every beat. Reposition each
+beat's callout relative to `workspace` instead (e.g. `.next_to(workspace, UP,
+buff=0.2)`), since `workspace` never moves in world coordinates even as the
+camera drifts around it. See `_anchor_callout()` in the reference demo.
+
+### Why a horizontal strip along the bottom
+
+The vertical axis (8 units) is already the tighter one today — `safe_container()`'s
+own default height (5.4) already uses ~68% of it — so it's the right axis to
+compress for the filmstrip. A side column would instead force every beat's
+diagrams to be re-authored narrower, fighting the width `terminal_box`/`callout`/
+`safe_container` already assume is available.
+
+### `assert_within_camera` vs `assert_on_screen`
+
+`assert_on_screen()` checks a group's bounding box against the *static*
+`config.frame_width`/`frame_height` — correct only for content built before the
+camera has moved (e.g. an opening title card). Once `archive_to_slot()` has run
+once, the camera is no longer in its default state, so every beat after the first
+should be checked with `assert_within_camera(group, scene.camera.frame, label)`
+instead. `assert_no_overlap()`/`assert_within()` need no camera-aware equivalent —
+they compare two groups to each other, independent of any frame.
+
+### Reference example
+
+`demos/lineage_of_llms_demo.py` is a working, self-contained proof-of-concept:
+four beats adapted from `scenes/llms/01_transformer.py`, `02_gpt.py`, `08_mamba.py`,
+and `09_rwkv.py` (attention, decoder stack, selective state, and a
+`styled_bar_chart()`-based cost comparison), stitched with the `BEATS` pattern
+above. It lives in `demos/`, not `scenes/`, because it's a pattern-validation
+prototype, not a real episode — real format-2 posts go under
+`scenes/deep_dives/` (created when the first one is written) once the pattern
+has been rendered and checked against the actual render service (see
+"Verifying against the render service" below).
+
+### Verifying against the render service
+
+Nothing in this repo pins a `manim` version, and `MovingCameraScene` is new API
+surface here (no scene used a camera before format 2). Before trusting a
+format-2 render:
+
+1. Confirm which `manim` version the render service actually runs, and match it
+   locally: `python3 -m venv .venv && source .venv/bin/activate && pip install
+   manim==<that version>` (needs `libcairo2-dev`, `libpango1.0-dev`, `ffmpeg`,
+   `pkg-config` as system deps first).
+2. Confirm `URW Gothic` and `Fira Code` are actually installed locally
+   (`fc-list | grep -i "urw gothic"` / `fc-list | grep -i "fira code"`) — if not,
+   treat any text-width-sensitive assertion result as unverified until it's
+   checked with the real fonts.
+3. Fast smoke test: `manim -ql --disable_caching demos/lineage_of_llms_demo.py
+   LineageOfLLMsDemo` (480p15) — watch stderr for `AssertionError`s (they print
+   the exact offending coordinates).
+4. Final check at the service's real quality flag: `manim -qm
+   demos/lineage_of_llms_demo.py LineageOfLLMsDemo` (720p30).
+5. Watch the rendered mp4 for: the active beat clipped at the camera edge, the
+   filmstrip overlapping the workspace, a jump-cut instead of a smooth camera
+   move in `archive_to_slot()`, or the final `zoomout_reveal()` cropping a
+   filmstrip slot. Illegible text *inside an archived slot* is expected (see
+   `archive_to_slot()`'s docstring) — not a bug.
