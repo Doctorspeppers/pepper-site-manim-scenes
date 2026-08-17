@@ -178,35 +178,29 @@ def workspace_zone(width=12.8, height=5.2, y_shift=1.1):
                              color=GRAY_D, stroke_width=1.0, stroke_opacity=0.35).shift(UP * y_shift)
 
 
-def mosaic_strip(n_slots, width=13.2, height=1.7, y_shift=3.0, gap=0.25):
+def enter_workspace(camera_frame, workspace, margin=1.0):
+    scale = max((workspace.width + margin * 2) / camera_frame.width,
+                (workspace.height + margin * 2) / camera_frame.height)
+    camera_frame.scale(scale).move_to(workspace.get_center())
+
+
+def mosaic_strip(n_slots, width=13.2, height=1.7, y_shift=4.2, gap=0.25):
     slot_w = (width - gap * (n_slots - 1)) / n_slots
     slots = VGroup(*[Rectangle(width=slot_w, height=height, stroke_opacity=0) for _ in range(n_slots)])
     slots.arrange(RIGHT, buff=gap).shift(DOWN * y_shift)
     return slots
 
 
-def archive_to_slot(scene, camera_frame, beat_group, slot, workspace, filled_slots, run_time=1.4):
+def archive_to_slot(scene, beat_group, slot, run_time=1.2):
     scale = min(slot.width / beat_group.width, slot.height / beat_group.height)
-    beat_group.generate_target()
-    beat_group.target.scale(scale).move_to(slot.get_center())
-
-    camera_frame.generate_target()
-    visible = VGroup(workspace, *filled_slots, slot)
-    camera_frame.target.set(width=max(visible.width + 1.0, camera_frame.width))
-    if camera_frame.target.height < visible.height + 1.0:
-        camera_frame.target.set(height=visible.height + 1.0)
-    camera_frame.target.move_to(visible.get_center())
-
-    scene.play(MoveToTarget(beat_group), MoveToTarget(camera_frame), run_time=run_time)
-    filled_slots.append(beat_group)
+    scene.play(beat_group.animate.scale(scale).move_to(slot.get_center()), run_time=run_time)
 
 
 def zoomout_reveal(scene, camera_frame, mosaic_group, run_time=2.5):
+    scale = max((mosaic_group.width + 1.2) / camera_frame.width,
+                (mosaic_group.height + 1.2) / camera_frame.height)
     camera_frame.generate_target()
-    camera_frame.target.set(width=mosaic_group.width + 1.2)
-    if camera_frame.target.height < mosaic_group.height + 1.2:
-        camera_frame.target.set(height=mosaic_group.height + 1.2)
-    camera_frame.target.move_to(mosaic_group.get_center())
+    camera_frame.target.scale(scale).move_to(mosaic_group.get_center())
     scene.play(MoveToTarget(camera_frame), run_time=run_time)
 
 
@@ -414,18 +408,17 @@ class LineageOfLLMsDemo(MovingCameraScene):
         workspace = workspace_zone()
         slots = mosaic_strip(n_slots=len(BEATS))
         assert_no_overlap(workspace, slots, "workspace vs mosaic strip")
+        enter_workspace(self.camera.frame, workspace)
         self.play(Create(workspace))
 
-        filled = []
-        for beat_fn in BEATS:
+        for i, beat_fn in enumerate(BEATS):
             beat_group = beat_fn(self, workspace)
-            slot = slots[len(filled)]
-            archive_to_slot(self, self.camera.frame, beat_group, slot, workspace, filled)
+            archive_to_slot(self, beat_group, slots[i])
 
         zoomout_reveal(self, self.camera.frame, VGroup(workspace, slots))
 
         closing = Text(
-            "Do Transformer ao Mamba: cada peça já coberta continua visível.",
+            "Do Transformer ao Mamba: tudo que ficou pelo caminho, de volta numa imagem só.",
             font_size=20, color=WHITE,
         ).move_to(workspace.get_center())
         if closing.width > workspace.width - 1.0:
