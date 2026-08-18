@@ -136,7 +136,7 @@ class BLIP2Scene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The cost problem ---
@@ -150,7 +150,7 @@ class BLIP2Scene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term, "blip2 cost problem terminal")
         self.play(FadeIn(term))
-        self.wait(4)
+        self.wait(8)
         self.play(FadeOut(c1), FadeOut(term))
 
         # --- 2. The Q-Former as sole bridge ---
@@ -178,9 +178,26 @@ class BLIP2Scene(Scene):
         note1 = Text("cross-attention contra a imagem + self-attention contra o texto", font_size=16, color=MECHANISM)
         note1.next_to(bridge_group, DOWN, buff=0.7)
         self.play(FadeIn(note1))
-        self.wait(4.2)
+        self.wait(8.4)
 
         self.play(FadeOut(c2), FadeOut(bridge_group), FadeOut(note1))
+
+        # --- 2b. What the query tokens actually learn ---
+        c2b = callout("O que as queries aprendem: extrair só a informação visual relevante para o texto", color=MECHANISM)
+        self.play(FadeIn(c2b))
+
+        term_query = terminal_box([
+            "32 queries aprendidas, tamanho fixo — bem menor que",
+            "  os milhares de patches que o encoder de imagem produz",
+            "",
+            "cada query cross-attende à imagem inteira, mas aprende",
+            "  a se especializar em um aspecto (cor, objeto, ação...)",
+        ], font_size=15).shift(DOWN * 0.1)
+        assert_on_screen(term_query, "blip2 query tokens terminal")
+        self.play(FadeIn(term_query))
+        self.wait(8.4)
+
+        self.play(FadeOut(c2b), FadeOut(term_query))
 
         # --- 3. Two-stage training ---
         c3 = callout("Treino em duas etapas, cada uma contra um modelo congelado diferente")
@@ -191,9 +208,9 @@ class BLIP2Scene(Scene):
         stages = stack_rows([stage1, stage2], buff=0.4)
         assert_on_screen(stages, "blip2 training stages")
         self.play(FadeIn(stage1))
-        self.wait(1.5)
+        self.wait(3)
         self.play(FadeIn(stage2))
-        self.wait(3.5)
+        self.wait(7)
 
         self.play(FadeOut(c3), FadeOut(stages))
 
@@ -206,7 +223,7 @@ class BLIP2Scene(Scene):
         ], font_size=18).shift(DOWN * 0.1)
         assert_on_screen(term2, "blip2 result terminal")
         self.play(FadeIn(term2))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c4), FadeOut(term2))
 
         # --- Closing ---
@@ -219,5 +236,5 @@ class BLIP2Scene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(backdrop), FadeOut(closing))

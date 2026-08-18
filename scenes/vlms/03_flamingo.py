@@ -136,7 +136,7 @@ class FlamingoScene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The goal: connect two frozen giants ---
@@ -162,7 +162,7 @@ class FlamingoScene(Scene):
         if note1.width > 12.6:
             note1.scale_to_fit_width(12.6)
         self.play(FadeIn(note1))
-        self.wait(4)
+        self.wait(8)
 
         self.play(FadeOut(c1), FadeOut(frozen_group), FadeOut(note1))
 
@@ -195,7 +195,7 @@ class FlamingoScene(Scene):
         self.play(FadeIn(variable_feats), FadeIn(variable_label))
         self.play(FadeIn(resampler), GrowArrow(arrow1))
         self.play(FadeIn(fixed_feats), FadeIn(fixed_label), GrowArrow(arrow2))
-        self.wait(4)
+        self.wait(8)
 
         self.play(FadeOut(c2), FadeOut(resampler_group))
 
@@ -218,10 +218,28 @@ class FlamingoScene(Scene):
         if tanh_note.width > 12.6:
             tanh_note.scale_to_fit_width(12.6)
         self.play(FadeIn(tanh_note))
-        self.wait(4.5)
+        self.wait(9)
 
         gated_group = VGroup(stack, tanh_note)
         self.play(FadeOut(c3), FadeOut(gated_group))
+
+        # --- 3b. Few-shot in context: interleaved image+text prompt ---
+        c3b = callout("Few-shot em contexto: exemplos e a pergunta viram um único prompt intercalado", color=MECHANISM)
+        self.play(FadeIn(c3b))
+
+        term_fewshot = terminal_box([
+            "[imagem 1] essa é uma coruja",
+            "[imagem 2] esse é um golfinho",
+            "[imagem 3] esse é um _______  <- pergunta real",
+            "",
+            "-> nenhum peso muda entre os exemplos e a pergunta",
+            "   o modelo já viu o padrão suficiente para completar",
+        ], font_size=15).shift(DOWN * 0.1)
+        assert_on_screen(term_fewshot, "flamingo interleaved fewshot terminal")
+        self.play(FadeIn(term_fewshot))
+        self.wait(9)
+
+        self.play(FadeOut(c3b), FadeOut(term_fewshot))
 
         # --- 4. What this enables ---
         c4 = callout("O que isso viabiliza:")
@@ -234,7 +252,7 @@ class FlamingoScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term, "flamingo capabilities terminal")
         self.play(FadeIn(term))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c4), FadeOut(term))
 
         # --- Closing ---
@@ -247,5 +265,5 @@ class FlamingoScene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(backdrop), FadeOut(closing))

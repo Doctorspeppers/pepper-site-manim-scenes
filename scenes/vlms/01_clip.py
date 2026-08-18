@@ -137,7 +137,7 @@ class CLIPScene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The old paradigm: fixed category classifiers ---
@@ -158,9 +158,28 @@ class CLIPScene(Scene):
         note1 = Text("categoria nova? precisa coletar e rotular mais dados de treino", font_size=17, color=OLD)
         note1.next_to(fixed_group, DOWN, buff=0.6)
         self.play(FadeIn(note1))
-        self.wait(3.5)
+        self.wait(7)
 
         self.play(FadeOut(c1), FadeOut(fixed_group), FadeOut(note1))
+
+        # --- 1b. Scale comparison: what "broader supervision" means concretely ---
+        c1b = callout("A escala que isso viabiliza: milhões de pares (imagem, texto) da internet, sem curadoria")
+        self.play(FadeIn(c1b))
+
+        old_scale = sized_box("ImageNet\n1,28 milhão de imagens\n1000 categorias fixas", font_size=15, color=WHITE, box_color=OLD, box_opacity=0.2, min_width=4.4, min_height=1.6, line_spacing=1.25)
+        new_scale = sized_box("CLIP\n400 milhões de pares\nnenhuma categoria fixa", font_size=15, color=WHITE, box_color=MECHANISM, box_opacity=0.35, min_width=4.4, min_height=1.6, line_spacing=1.25)
+        scale_row = VGroup(old_scale, new_scale).arrange(RIGHT, buff=1.0)
+        assert_on_screen(scale_row, "clip scale comparison")
+        self.play(FadeIn(old_scale))
+        self.play(FadeIn(new_scale))
+        note1b = Text("a supervisão vem da própria legenda da web — não de um rótulo escolhido a dedo", font_size=16, color=GRAY_B)
+        note1b.next_to(scale_row, DOWN, buff=0.7)
+        if note1b.width > 12.6:
+            note1b.scale_to_fit_width(12.6)
+        self.play(FadeIn(note1b))
+        self.wait(8.4)
+
+        self.play(FadeOut(c1b), FadeOut(scale_row), FadeOut(note1b))
 
         # --- 2. The idea: joint embedding space via contrastive pretraining ---
         c2 = callout("A ideia: imagem e texto no mesmo espaço de embeddings, aprendido por contraste", color=MECHANISM)
@@ -183,7 +202,7 @@ class CLIPScene(Scene):
         self.play(FadeIn(img_enc), FadeIn(txt_enc))
         self.play(Create(space), FadeIn(space_label))
         self.play(GrowArrow(img_arrow), GrowArrow(txt_arrow))
-        self.wait(3.5)
+        self.wait(7)
 
         self.play(FadeOut(c2), FadeOut(joint_group))
 
@@ -213,7 +232,7 @@ class CLIPScene(Scene):
         if note2.width > 12.6:
             note2.scale_to_fit_width(12.6)
         self.play(FadeIn(note2))
-        self.wait(4.2)
+        self.wait(8.4)
 
         self.play(FadeOut(c3), FadeOut(matrix_group), FadeOut(note2))
 
@@ -230,7 +249,7 @@ class CLIPScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term, "clip zero-shot terminal")
         self.play(FadeIn(term))
-        self.wait(4.5)
+        self.wait(9)
 
         self.play(FadeOut(c4), FadeOut(term))
 
@@ -244,7 +263,7 @@ class CLIPScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term2, "clip result terminal")
         self.play(FadeIn(term2))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c5), FadeOut(term2))
 
         # --- Closing ---
@@ -257,5 +276,5 @@ class CLIPScene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(backdrop), FadeOut(closing))

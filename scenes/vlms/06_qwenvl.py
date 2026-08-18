@@ -136,7 +136,7 @@ class QwenVLScene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The architecture: ViT + adapter + Qwen LLM ---
@@ -162,7 +162,7 @@ class QwenVLScene(Scene):
         if note1.width > 12.6:
             note1.scale_to_fit_width(12.6)
         self.play(FadeIn(note1))
-        self.wait(4)
+        self.wait(8)
 
         self.play(FadeOut(c1), FadeOut(base_group), FadeOut(note1))
 
@@ -192,9 +192,26 @@ class QwenVLScene(Scene):
         self.play(FadeIn(img_group))
         self.play(FadeIn(coords))
         self.play(FadeIn(term))
-        self.wait(4.5)
+        self.wait(9)
 
         self.play(FadeOut(c2), FadeOut(grounding_group))
+
+        # --- 2b. Multi-image, multi-turn dialogue ---
+        c2b = callout("Além de uma imagem só: múltiplas imagens, múltiplos turnos de diálogo", color=MECHANISM)
+        self.play(FadeIn(c2b))
+
+        term_multi = terminal_box([
+            "turno 1: [imagem A] [imagem B] 'qual das duas é mais recente?'",
+            "turno 2: 'e o que mudou entre as duas?'",
+            "",
+            "-> o modelo mantém contexto de imagens anteriores",
+            "   entre turnos, não só dentro de uma única pergunta",
+        ], font_size=15).shift(DOWN * 0.1)
+        assert_on_screen(term_multi, "qwenvl multi-image dialogue terminal")
+        self.play(FadeIn(term_multi))
+        self.wait(8.4)
+
+        self.play(FadeOut(c2b), FadeOut(term_multi))
 
         # --- 3. Multilingual, multi-stage training ---
         c3 = callout("Treino em 3 estágios, sobre um corpus multilíngue (chinês e inglês)")
@@ -207,7 +224,7 @@ class QwenVLScene(Scene):
         ], font_size=16).shift(DOWN * 0.1)
         assert_on_screen(term2, "qwenvl training stages terminal")
         self.play(FadeIn(term2))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(c3), FadeOut(term2))
 
         # --- 4. Result ---
@@ -220,7 +237,7 @@ class QwenVLScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term3, "qwenvl result terminal")
         self.play(FadeIn(term3))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c4), FadeOut(term3))
 
         # --- Closing: recap the whole VLM group ---
@@ -233,5 +250,5 @@ class QwenVLScene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(backdrop), FadeOut(closing))

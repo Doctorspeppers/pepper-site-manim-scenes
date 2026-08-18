@@ -134,7 +134,7 @@ class LLaVAScene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The simplicity bet ---
@@ -161,7 +161,7 @@ class LLaVAScene(Scene):
         if note1.width > 12.6:
             note1.scale_to_fit_width(12.6)
         self.play(FadeIn(note1))
-        self.wait(4.2)
+        self.wait(8.4)
 
         self.play(FadeOut(c1), FadeOut(bridge_group), FadeOut(note1))
 
@@ -180,9 +180,26 @@ class LLaVAScene(Scene):
         ], font_size=16).shift(DOWN * 0.1)
         assert_on_screen(term, "llava data generation terminal")
         self.play(FadeIn(term))
-        self.wait(4.8)
+        self.wait(9.6)
 
         self.play(FadeOut(c2), FadeOut(term))
+
+        # --- 2b. A concrete example of the generated data ---
+        c2b = callout("Um exemplo concreto do formato gerado")
+        self.play(FadeIn(c2b))
+
+        term2b = terminal_box([
+            "legenda original: 'um homem em uma escada, pintando uma parede'",
+            "",
+            "GPT-4 gera:",
+            "  P: por que a pessoa está usando uma escada?",
+            "  R: para alcançar áreas altas da parede com segurança",
+        ], font_size=15).shift(DOWN * 0.1)
+        assert_on_screen(term2b, "llava example data terminal")
+        self.play(FadeIn(term2b))
+        self.wait(8.4)
+
+        self.play(FadeOut(c2b), FadeOut(term2b))
 
         # --- 3. Training: two stages ---
         c3 = callout("Treino em duas etapas: alinhamento, depois instrução de ponta a ponta")
@@ -193,9 +210,9 @@ class LLaVAScene(Scene):
         stages = stack_rows([stage1, stage2], buff=0.4)
         assert_on_screen(stages, "llava training stages")
         self.play(FadeIn(stage1))
-        self.wait(1.5)
+        self.wait(3)
         self.play(FadeIn(stage2))
-        self.wait(3.5)
+        self.wait(7)
 
         self.play(FadeOut(c3), FadeOut(stages))
 
@@ -211,7 +228,7 @@ class LLaVAScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term2, "llava result terminal")
         self.play(FadeIn(term2))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c4), FadeOut(term2))
 
         # --- Closing ---
@@ -224,5 +241,5 @@ class LLaVAScene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(backdrop), FadeOut(closing))

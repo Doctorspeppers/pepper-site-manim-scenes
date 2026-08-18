@@ -136,7 +136,7 @@ class ViTScene(Scene):
         subtitle.next_to(title, DOWN, buff=0.35)
         self.play(Write(title))
         self.play(FadeIn(subtitle))
-        self.wait(2.8)
+        self.wait(5.6)
         self.play(FadeOut(title), FadeOut(subtitle))
 
         # --- 1. The premise: CNNs still dominant ---
@@ -153,7 +153,7 @@ class ViTScene(Scene):
         note1 = Text("um Transformer puro, sem nenhuma convolução, funcionaria em imagens?", font_size=17, color=MECHANISM)
         note1.next_to(combo, DOWN, buff=0.7)
         self.play(FadeIn(note1))
-        self.wait(3.5)
+        self.wait(7)
 
         self.play(FadeOut(c1), FadeOut(combo), FadeOut(note1))
 
@@ -183,9 +183,26 @@ class ViTScene(Scene):
         self.play(FadeIn(grid), FadeIn(grid_label))
         self.play(GrowArrow(arrow))
         self.play(FadeIn(tokens), FadeIn(tokens_label))
-        self.wait(4.2)
+        self.wait(8.4)
 
         self.play(FadeOut(c2), FadeOut(patch_group))
+
+        # --- 2b. Why patch size trades off resolution vs. sequence length ---
+        c2b = callout("O tamanho do patch é um trade-off direto: menor patch, sequência mais longa", color=MECHANISM)
+        self.play(FadeIn(c2b))
+
+        term_patch = terminal_box([
+            "imagem 224x224, patch 16x16 -> 14x14 = 196 patches",
+            "imagem 224x224, patch 32x32 -> 7x7  = 49 patches",
+            "",
+            "menos patches: mais rápido, perde detalhe fino",
+            "mais patches: mais caro (atenção escala ao quadrado), mais detalhe",
+        ], font_size=16).shift(DOWN * 0.1)
+        assert_on_screen(term_patch, "vit patch size tradeoff terminal")
+        self.play(FadeIn(term_patch))
+        self.wait(8.4)
+
+        self.play(FadeOut(c2b), FadeOut(term_patch))
 
         # --- 3. CLS token + positional embeddings ---
         c3 = callout("Um token [CLS] extra (herdado do BERT) e posições aprendidas, iguais a um token")
@@ -212,7 +229,7 @@ class ViTScene(Scene):
         note2 = Text("saída final do [CLS] -> usada para classificação (mesma lógica do BERT)", font_size=16, color=OUTPUT)
         note2.next_to(cls_seq_group, DOWN, buff=0.7)
         self.play(FadeIn(note2))
-        self.wait(4.2)
+        self.wait(8.4)
 
         self.play(FadeOut(c3), FadeOut(cls_seq_group), FadeOut(note2))
 
@@ -227,7 +244,7 @@ class ViTScene(Scene):
         ], font_size=17).shift(DOWN * 0.1)
         assert_on_screen(term, "vit result terminal")
         self.play(FadeIn(term))
-        self.wait(4.5)
+        self.wait(9)
         self.play(FadeOut(c4), FadeOut(term))
 
         # --- Closing ---
@@ -240,5 +257,5 @@ class ViTScene(Scene):
             closing.scale_to_fit_width(12.4)
         self.play(FadeIn(backdrop))
         self.play(Write(closing))
-        self.wait(4.2)
+        self.wait(8.4)
         self.play(FadeOut(backdrop), FadeOut(closing))
