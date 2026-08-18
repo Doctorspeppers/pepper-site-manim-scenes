@@ -166,7 +166,22 @@ class IJEPAScene(Scene):
 
         arrow1 = Arrow(ctx.get_right(), pred.get_left(), buff=0.1, color=ENCODER, stroke_width=3)
         arrow2 = Arrow(pred.get_right(), tgt.get_left(), buff=0.1, color=MECHANISM, stroke_width=3)
-        ema_arrow = Arrow(ctx.get_bottom(), tgt.get_bottom(), buff=0.1, color=GRAY_B, stroke_width=2, path_arc=-1.5)
+        # Routed over the TOP as an explicit elbow (up / across / down),
+        # not a curved Arrow with path_arc — a curved arrow's stroke and
+        # arrowhead extend past its two given endpoints in ways that are
+        # awkward to bound in advance (two failed curve attempts both
+        # dipped back down into the predictor box despite elevated
+        # endpoints). A straight elbow's geometry is exact: the vertical
+        # stubs sit at ctx/tgt's x (outside pred's x-range), and the
+        # horizontal bar sits well above pred's top — no heuristics needed.
+        clearance = pred.get_top()[1] + 0.4
+        ctx_up = np.array([ctx.get_top()[0], clearance, 0])
+        tgt_up = np.array([tgt.get_top()[0], clearance, 0])
+        ema_stub1 = Line(ctx.get_top(), ctx_up, color=GRAY_B, stroke_width=2)
+        ema_bar = Line(ctx_up, tgt_up, color=GRAY_B, stroke_width=2)
+        ema_stub2 = Arrow(tgt_up, tgt.get_top(), buff=0.0, color=GRAY_B, stroke_width=2)
+        ema_arrow = VGroup(ema_stub1, ema_bar, ema_stub2)
+        assert_no_overlap(ema_arrow, pred, "ema_arrow vs predictor box")
 
         arch_group = VGroup(ctx, pred, tgt, arrow1, arrow2, ema_arrow)
         assert_on_screen(arch_group, "ijepa architecture diagram")
@@ -215,6 +230,22 @@ class IJEPAScene(Scene):
         self.play(FadeIn(term))
         self.wait(8)
         self.play(FadeOut(c4), FadeOut(term))
+
+        # --- 4.5 Benchmarks against the two prior families, with real numbers ---
+        c4b = callout("Contra as duas famílias anteriores, com números do próprio paper:", color=MECHANISM)
+        self.play(FadeIn(c4b))
+        term_bench = terminal_box([
+            "I-JEPA supera o MAE (reconstrução de pixels) em linear",
+            "  probing no ImageNet-1K, em semi-supervisionado com 1%",
+            "  dos rótulos, e em transferência semântica",
+            "pré-treinar um ViT-H/14 leva menos de 1200 horas de GPU:",
+            "  2,5x mais rápido que um ViT-S/16 treinado com iBOT,",
+            "  e 10x mais eficiente que um ViT-H/14 treinado com MAE",
+        ], font_size=15).shift(DOWN * 0.1)
+        assert_on_screen(term_bench, "ijepa benchmark terminal")
+        self.play(FadeIn(term_bench))
+        self.wait(8.4)
+        self.play(FadeOut(c4b), FadeOut(term_bench))
 
         # --- 5. Result ---
         c5 = callout("O resultado de eficiência citado no próprio paper:")

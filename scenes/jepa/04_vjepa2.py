@@ -201,6 +201,23 @@ class VJEPA2Scene(Scene):
 
         self.play(FadeOut(c3), FadeOut(plan_group), FadeOut(note1))
 
+        # --- 3.5. Concrete robot setup: what was actually tested ---
+        c3b = callout("O teste concreto: braços robóticos Franka, em dois laboratórios diferentes", color=MECHANISM)
+        self.play(FadeIn(c3b))
+        term_robot = terminal_box([
+            "V-JEPA 2-AC: pós-treinado com menos de 62 horas de vídeo",
+            "  de robôs não rotulado (dataset Droid)",
+            "implantado ZERO-SHOT em braços Franka em 2 laboratórios",
+            "  distintos -> pick-and-place de objetos por planejamento",
+            "  com metas em imagem (image goals)",
+            "sem coletar NENHUM dado desses robôs específicos,",
+            "  e sem treino ou recompensa específicos para a tarefa",
+        ], font_size=14).shift(DOWN * 0.1)
+        assert_on_screen(term_robot, "vjepa2 robot setup terminal")
+        self.play(FadeIn(term_robot))
+        self.wait(8.4)
+        self.play(FadeOut(c3b), FadeOut(term_robot))
+
         # --- 4. Result ---
         c4 = callout("O resultado citado no próprio paper:")
         self.play(FadeIn(c4))

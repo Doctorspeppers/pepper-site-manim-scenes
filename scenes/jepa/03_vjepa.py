@@ -198,6 +198,22 @@ class VJEPAScene(Scene):
         self.wait(8)
         self.play(FadeOut(c3), FadeOut(tasks_row), FadeOut(note2))
 
+        # --- 3.5. Attentive probing: the evaluation protocol itself matters ---
+        c3b = callout('Avaliação por "attentive probing": um probe leve de atenção, não um único linear', color=MECHANISM)
+        self.play(FadeIn(c3b))
+        term_probe = terminal_box([
+            "backbone V-JEPA congelado -> features fixas",
+            "  + um probe de cross-attention pequeno e treinável em cima",
+            "  (mais expressivo que um único linear layer, mas o",
+            "   backbone continua 100% congelado)",
+            'resultado: "+6% de acurácia" no Something-Something-v2',
+            "  sobre os outros métodos comparados nesse protocolo",
+        ], font_size=14).shift(DOWN * 0.1)
+        assert_on_screen(term_probe, "vjepa attentive probing terminal")
+        self.play(FadeIn(term_probe))
+        self.wait(8.4)
+        self.play(FadeOut(c3b), FadeOut(term_probe))
+
         # --- 4. Result ---
         c4 = callout("O resultado citado no próprio paper:")
         self.play(FadeIn(c4))

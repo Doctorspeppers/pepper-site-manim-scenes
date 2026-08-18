@@ -160,6 +160,31 @@ class LeCunScene(Scene):
 
         self.play(FadeOut(c1), FadeOut(vs_row), FadeOut(note1))
 
+        # --- 1.5. Three families of self-supervised architecture ---
+        c1b = callout("O próprio LeCun enquadra isso como três famílias de arquitetura", color=MECHANISM)
+        self.play(FadeIn(c1b))
+
+        je_box = sized_box("Joint-Embedding\n(x, y compatíveis -> embeddings\nsemelhantes; risco: colapso)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        je_box.shift(LEFT * 4.3)
+        gen2_box = sized_box("Generativa\n(decoder reconstrói y\na partir de x, pixel a pixel)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        jepa_box = sized_box("Joint-Embedding\nPREDICTIVE (JEPA)\n(predictor prevê a\nrepresentação de y)", font_size=13, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.0, min_height=1.5, line_spacing=1.1)
+        jepa_box.shift(RIGHT * 4.3)
+        families_row = VGroup(je_box, gen2_box, jepa_box)
+        assert_no_overlap(je_box, gen2_box, "lecun family boxes je vs gen")
+        assert_no_overlap(gen2_box, jepa_box, "lecun family boxes gen vs jepa")
+        assert_on_screen(families_row, "lecun three families row")
+        self.play(FadeIn(je_box))
+        self.play(FadeIn(gen2_box))
+        self.play(FadeIn(jepa_box))
+        note1b = Text("JEPA combina o melhor das duas: aprende no espaço de embeddings, mas prediz — não só compara", font_size=15, color=MECHANISM)
+        note1b.next_to(families_row, DOWN, buff=0.6)
+        if note1b.width > 12.6:
+            note1b.scale_to_fit_width(12.6)
+        self.play(FadeIn(note1b))
+        self.wait(8.4)
+
+        self.play(FadeOut(c1b), FadeOut(families_row), FadeOut(note1b))
+
         # --- 2. The 6-module architecture ---
         c2 = callout("A arquitetura proposta: seis módulos para aprender do mundo por observação", color=MECHANISM)
         self.play(FadeIn(c2))
