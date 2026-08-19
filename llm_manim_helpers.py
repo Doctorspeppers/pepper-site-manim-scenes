@@ -34,14 +34,60 @@ def _mono_font():
     return "Fira Code"
 
 
+# Hard legibility floor: at the render service's fixed 720p output, text
+# below this renders with visibly uneven letter spacing — a rasterization
+# problem, not a code problem. This has now shipped for real more than
+# once (most recently a plain caption Text at font_size=13 in the JEPA
+# overview scene, caught only after publishing) despite being documented
+# in prose here for a while — prose alone didn't stop it from recurring.
+# Every helper below that creates Text asserts against this floor instead
+# of silently accepting a too-small size, so a violation is a loud,
+# immediate AssertionError at scene-authoring time (with the offending
+# helper named), not a video a human has to notice is broken after it's
+# already rendered and published.
+MIN_FONT_SIZE = 16
+
+
+def _assert_font_floor(font_size, label=""):
+    assert font_size >= MIN_FONT_SIZE, (
+        f"{label}: font_size={font_size} is below the {MIN_FONT_SIZE}pt legibility "
+        f"floor — text this small reads with visibly uneven letter spacing once "
+        f"actually rendered at the service's fixed 720p output, even though it "
+        f"looks fine as source code. Raise font_size, don't lower the floor."
+    )
+
+
 def callout(text, width=12.6, font_size=26, color=WHITE):
+    _assert_font_floor(font_size, "callout")
     t = Text(text, font_size=font_size, color=color)
     if t.width > width:
         t.scale_to_fit_width(width)
     return t.to_edge(UP, buff=0.4)
 
 
+def safe_caption(text, font_size=16, max_width=12.6, color=WHITE, **kwargs):
+    """The preferred way to build a long running caption/note, in place of
+    the ad hoc `if t.width > cap: t.scale_to_fit_width(cap)` pattern
+    scattered across earlier scenes — that pattern silently shrinks text
+    below the legibility floor whenever a caption runs long, which is
+    exactly how the recurring letter-spacing bug kept coming back even
+    with every individual font_size already >= 16. This asserts loudly
+    instead of shrinking: split the caption across lines with a literal
+    '\\n' (which Text, unlike Tex/MathTex, honors correctly as a real line
+    break) or shorten it, rather than let it auto-shrink into illegibility."""
+    _assert_font_floor(font_size, "safe_caption")
+    t = Text(text, font_size=font_size, color=color, **kwargs)
+    assert t.width <= max_width, (
+        f"safe_caption: width={t.width:.2f} exceeds max_width={max_width} — "
+        f"shorten the text or split it across lines with '\\n', don't let it "
+        f"auto-shrink below the {MIN_FONT_SIZE}pt floor."
+    )
+    return t
+
+
 def terminal_box(lines, width=11.6, height=None, font_size=18):
+    _assert_font_floor(font_size, "terminal_box")
+
     def make_row(line):
         if line:
             return Text(line, font=_mono_font(), font_size=font_size, color=WHITE)
@@ -76,6 +122,7 @@ def sized_box(text_str, font_size=16, text_color=None, color=WHITE, box_color=WH
     box fill, and both `fill_opacity`/`box_opacity` for its opacity —
     different call sites across this series settled on different names for
     the same thing; all are honored so any of them work."""
+    _assert_font_floor(font_size, "sized_box")
     text_color = text_color if text_color is not None else color
     fill_color = fill_color if fill_color is not None else box_color
     fill_opacity = fill_opacity if fill_opacity is not None else box_opacity
@@ -145,6 +192,8 @@ def diagram_row(diagram, label_text, sub_text, label_color=WHITE, sub_color=GRAY
     the caption text) is shrunk to fit. Returns the assembled row group —
     use `stack_rows()` to lay several of these out vertically without
     guessing buff sizes by hand."""
+    _assert_font_floor(label_font_size, "diagram_row label")
+    _assert_font_floor(sub_font_size, "diagram_row sub")
     label = Text(label_text, font_size=label_font_size, color=label_color)
     sub = Text(sub_text, font_size=sub_font_size, color=sub_color, line_spacing=1.1)
     caption = VGroup(label, sub).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
@@ -160,6 +209,7 @@ def uniform_boxes(texts, font_size=16, box_color=WHITE, box_opacity=0.3, margin=
     among them at font_size, with real margin — so a grid of short labels
     (token pieces, step numbers, expert IDs) reads as visually uniform
     without any individual box needing to shrink its own text to fit."""
+    _assert_font_floor(font_size, "uniform_boxes")
     labels = [Text(t, font_size=font_size, color=WHITE, line_spacing=line_spacing) for t in texts]
     width = max(label.width for label in labels) + margin * 2
     height = max(label.height for label in labels) + margin * 2
@@ -175,6 +225,7 @@ def uniform_boxes(texts, font_size=16, box_color=WHITE, box_opacity=0.3, margin=
 def sized_circle(text_str, font_size=16, color=WHITE, circle_color=WHITE, fill_opacity=0.3, margin=0.35, line_spacing=1.0):
     """Circle equivalent of sized_box() — sized to fit `text_str` with real
     margin, text never scaled down to fit a pre-picked radius."""
+    _assert_font_floor(font_size, "sized_circle")
     label = Text(text_str, font_size=font_size, color=color, line_spacing=line_spacing)
     radius = max(label.width, label.height) / 2 + margin
     circle = Circle(radius=radius, color=circle_color, fill_color=circle_color, fill_opacity=fill_opacity)

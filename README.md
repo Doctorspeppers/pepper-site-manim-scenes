@@ -24,6 +24,18 @@ More groups are planned as separate subdirectories under `scenes/` — e.g. VLMs
 JEPA, generative models, self-supervised learning, GNNs, world-models/RL — each
 following the same one-file-per-scene layout as `scenes/llms/`.
 
+**`scenes/vlms/`** and **`scenes/jepa/`** are also live. `scenes/jepa/00_overview.py`
+is the reference example for a new standard: every future group should open with
+one long-form (~5 minutes), deeply explanatory overview scene — inserted before
+its group's per-paper deep dives — built in a 3Blue1Brown-influenced style: real
+plotted graphs (`Axes`/`.plot()`, `BarChart`) instead of only box diagrams, the
+actual math in `MathTex` with individual terms highlighted and explained one at a
+time (build multi-term formulas as several `MathTex(...)` string arguments so each
+term is a safely indexable submobject — never slice a single compiled `MathTex` by
+guessed character offsets), and at least one worked numeric example plugging real
+numbers into a real formula. Length comes from genuine added depth (more real
+beats, doubled hold times), not padding.
+
 ## Render pipeline, and why every scene file is self-contained
 
 Scenes are rendered by an internal-only render service that accepts exactly one
@@ -118,6 +130,26 @@ diagram, a new row below an existing stack, etc.) should be run through
 `assert_no_overlap` before the scene fades it in. That way a bad layout fails the
 render loudly, with exact coordinates in stderr, instead of silently shipping a
 video with overlapping or clipped elements.
+
+### The font-size floor is now enforced in code, not just in this doc
+
+`MIN_FONT_SIZE = 16` and `_assert_font_floor(font_size, label)` in
+`llm_manim_helpers.py` make the rule above self-enforcing: `callout()`,
+`terminal_box()`, `sized_box()`, `sized_circle()`, `uniform_boxes()`, and
+`diagram_row()` all call `_assert_font_floor()` on every `font_size` they're
+given, so passing anything below 16 fails the render immediately with an
+`AssertionError` naming the offending helper — instead of silently shipping a
+scene where the artifact only shows up once someone actually watches the
+rendered video. This exists because the documentation alone didn't stop the bug
+from recurring: the JEPA-group overview scene shipped a plain `Text(...,
+font_size=13)` caption above a bar chart that rendered with visibly overlapping
+letters, caught only after publishing. Prefer **`safe_caption(text, font_size=16,
+max_width=12.6, ...)`** for any long running caption/note instead of the older
+`if t.width > cap: t.scale_to_fit_width(cap)` pattern still visible in some
+existing scenes — that pattern is exactly how a caption already at 16pt+ can
+still end up shrunk below the floor once its content runs long. `safe_caption`
+asserts instead of shrinking: split the text across lines with a literal `\n`
+(which `Text` honors as a real line break, unlike `Tex`/`MathTex`) or shorten it.
 
 ## How to add a new scene
 

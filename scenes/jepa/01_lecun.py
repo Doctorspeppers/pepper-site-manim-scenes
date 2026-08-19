@@ -32,14 +32,55 @@ def _mono_font():
     return "Fira Code"
 
 
+# Hard legibility floor: text below this renders with visibly uneven
+# letter spacing at the render service's fixed 720p output (a
+# rasterization problem, not a code problem — confirmed to reappear even
+# when nothing else is wrong, e.g. a plain caption Text at font_size=13).
+# Every helper below that creates Text asserts against this floor instead
+# of silently accepting a too-small size, so the failure is a loud,
+# immediate AssertionError at scene-authoring time, not a video a human
+# has to notice is broken after it's already rendered and published.
+MIN_FONT_SIZE = 16
+
+
+def _assert_font_floor(font_size, label=""):
+    assert font_size >= MIN_FONT_SIZE, (
+        f"{label}: font_size={font_size} is below the {MIN_FONT_SIZE}pt legibility "
+        f"floor — text this small reads with visibly uneven letter spacing once "
+        f"actually rendered at the service's fixed 720p output, even though it "
+        f"looks fine as source code. Raise font_size, don't lower the floor."
+    )
+
+
 def callout(text, width=12.6, font_size=26, color=WHITE):
+    _assert_font_floor(font_size, "callout")
     t = Text(text, font_size=font_size, color=color)
     if t.width > width:
         t.scale_to_fit_width(width)
     return t.to_edge(UP, buff=0.4)
 
 
+def safe_caption(text, font_size=16, max_width=12.6, color=WHITE, **kwargs):
+    """The preferred way to build a long running caption/note. Unlike the
+    ad hoc `if t.width > cap: t.scale_to_fit_width(cap)` pattern scattered
+    across earlier scenes — which silently shrinks text below the
+    legibility floor whenever a caption runs long, exactly the bug that
+    kept recurring — this asserts loudly instead, forcing the caption to
+    be shortened or split across lines (with a literal '\\n', which Text
+    honors correctly) rather than auto-shrunk into illegibility."""
+    _assert_font_floor(font_size, "safe_caption")
+    t = Text(text, font_size=font_size, color=color, **kwargs)
+    assert t.width <= max_width, (
+        f"safe_caption: width={t.width:.2f} exceeds max_width={max_width} — "
+        f"shorten the text or split it across lines with '\\n', don't let it "
+        f"auto-shrink below the {MIN_FONT_SIZE}pt floor."
+    )
+    return t
+
+
 def terminal_box(lines, width=11.6, height=None, font_size=18):
+    _assert_font_floor(font_size, "terminal_box")
+
     def make_row(line):
         if line:
             return Text(line, font=_mono_font(), font_size=font_size, color=WHITE)
@@ -62,6 +103,7 @@ def terminal_box(lines, width=11.6, height=None, font_size=18):
 def sized_box(text_str, font_size=16, text_color=None, color=WHITE, box_color=WHITE, fill_color=None,
               fill_opacity=None, box_opacity=0.3, min_width=1.0, min_height=0.6, margin=0.3,
               corner_radius=0.08, line_spacing=1.0):
+    _assert_font_floor(font_size, "sized_box")
     text_color = text_color if text_color is not None else color
     fill_color = fill_color if fill_color is not None else box_color
     fill_opacity = fill_opacity if fill_opacity is not None else box_opacity
@@ -164,10 +206,10 @@ class LeCunScene(Scene):
         c1b = callout("O próprio LeCun enquadra isso como três famílias de arquitetura", color=MECHANISM)
         self.play(FadeIn(c1b))
 
-        je_box = sized_box("Joint-Embedding\n(x, y compatíveis -> embeddings\nsemelhantes; risco: colapso)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        je_box = sized_box("Joint-Embedding\n(x, y compatíveis -> embeddings\nsemelhantes; risco: colapso)", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
         je_box.shift(LEFT * 4.3)
-        gen2_box = sized_box("Generativa\n(decoder reconstrói y\na partir de x, pixel a pixel)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
-        jepa_box = sized_box("Joint-Embedding\nPREDICTIVE (JEPA)\n(predictor prevê a\nrepresentação de y)", font_size=13, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.0, min_height=1.5, line_spacing=1.1)
+        gen2_box = sized_box("Generativa\n(decoder reconstrói y\na partir de x, pixel a pixel)", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        jepa_box = sized_box("Joint-Embedding\nPREDICTIVE (JEPA)\n(predictor prevê a\nrepresentação de y)", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.0, min_height=1.5, line_spacing=1.1)
         jepa_box.shift(RIGHT * 4.3)
         families_row = VGroup(je_box, gen2_box, jepa_box)
         assert_no_overlap(je_box, gen2_box, "lecun family boxes je vs gen")
@@ -176,7 +218,7 @@ class LeCunScene(Scene):
         self.play(FadeIn(je_box))
         self.play(FadeIn(gen2_box))
         self.play(FadeIn(jepa_box))
-        note1b = Text("JEPA combina o melhor das duas: aprende no espaço de embeddings, mas prediz — não só compara", font_size=15, color=MECHANISM)
+        note1b = Text("JEPA combina o melhor das duas: aprende no espaço de embeddings, mas prediz — não só compara", font_size=16, color=MECHANISM)
         note1b.next_to(families_row, DOWN, buff=0.6)
         if note1b.width > 12.6:
             note1b.scale_to_fit_width(12.6)
@@ -198,7 +240,7 @@ class LeCunScene(Scene):
             ("Configurador", FFN),
         ]
         boxes = VGroup(*[
-            sized_box(name, font_size=14, color=WHITE, box_color=color, box_opacity=0.35, min_width=2.4, min_height=1.0, line_spacing=1.1)
+            sized_box(name, font_size=16, color=WHITE, box_color=color, box_opacity=0.35, min_width=2.4, min_height=1.0, line_spacing=1.1)
             for name, color in modules
         ]).arrange_in_grid(rows=2, cols=3, buff=0.35)
         assert_on_screen(boxes, "lecun 6 modules grid")

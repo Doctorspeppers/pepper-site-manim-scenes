@@ -32,14 +32,55 @@ def _mono_font():
     return "Fira Code"
 
 
+# Hard legibility floor: text below this renders with visibly uneven
+# letter spacing at the render service's fixed 720p output (a
+# rasterization problem, not a code problem — confirmed to reappear even
+# when nothing else is wrong, e.g. a plain caption Text at font_size=13).
+# Every helper below that creates Text asserts against this floor instead
+# of silently accepting a too-small size, so the failure is a loud,
+# immediate AssertionError at scene-authoring time, not a video a human
+# has to notice is broken after it's already rendered and published.
+MIN_FONT_SIZE = 16
+
+
+def _assert_font_floor(font_size, label=""):
+    assert font_size >= MIN_FONT_SIZE, (
+        f"{label}: font_size={font_size} is below the {MIN_FONT_SIZE}pt legibility "
+        f"floor — text this small reads with visibly uneven letter spacing once "
+        f"actually rendered at the service's fixed 720p output, even though it "
+        f"looks fine as source code. Raise font_size, don't lower the floor."
+    )
+
+
 def callout(text, width=12.6, font_size=26, color=WHITE):
+    _assert_font_floor(font_size, "callout")
     t = Text(text, font_size=font_size, color=color)
     if t.width > width:
         t.scale_to_fit_width(width)
     return t.to_edge(UP, buff=0.4)
 
 
+def safe_caption(text, font_size=16, max_width=12.6, color=WHITE, **kwargs):
+    """The preferred way to build a long running caption/note. Unlike the
+    ad hoc `if t.width > cap: t.scale_to_fit_width(cap)` pattern scattered
+    across earlier scenes — which silently shrinks text below the
+    legibility floor whenever a caption runs long, exactly the bug that
+    kept recurring — this asserts loudly instead, forcing the caption to
+    be shortened or split across lines (with a literal '\\n', which Text
+    honors correctly) rather than auto-shrunk into illegibility."""
+    _assert_font_floor(font_size, "safe_caption")
+    t = Text(text, font_size=font_size, color=color, **kwargs)
+    assert t.width <= max_width, (
+        f"safe_caption: width={t.width:.2f} exceeds max_width={max_width} — "
+        f"shorten the text or split it across lines with '\\n', don't let it "
+        f"auto-shrink below the {MIN_FONT_SIZE}pt floor."
+    )
+    return t
+
+
 def terminal_box(lines, width=11.6, height=None, font_size=18):
+    _assert_font_floor(font_size, "terminal_box")
+
     def make_row(line):
         if line:
             return Text(line, font=_mono_font(), font_size=font_size, color=WHITE)
@@ -62,6 +103,7 @@ def terminal_box(lines, width=11.6, height=None, font_size=18):
 def sized_box(text_str, font_size=16, text_color=None, color=WHITE, box_color=WHITE, fill_color=None,
               fill_opacity=None, box_opacity=0.3, min_width=1.0, min_height=0.6, margin=0.3,
               corner_radius=0.08, line_spacing=1.0):
+    _assert_font_floor(font_size, "sized_box")
     text_color = text_color if text_color is not None else color
     fill_color = fill_color if fill_color is not None else box_color
     fill_opacity = fill_opacity if fill_opacity is not None else box_opacity
@@ -149,15 +191,15 @@ class JEPAOverviewScene(Scene):
         c1 = callout("A ideia central que atravessa toda a série")
         self.play(FadeIn(c1))
 
-        pixel_box = sized_box("prever PIXELS\n(reconstrução completa,\ndetalhe imprevisível incluso)", font_size=15, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.8, min_height=1.6, line_spacing=1.2)
+        pixel_box = sized_box("prever PIXELS\n(reconstrução completa,\ndetalhe imprevisível incluso)", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.8, min_height=1.6, line_spacing=1.2)
         pixel_box.shift(LEFT * 3.4)
-        rep_box = sized_box("prever REPRESENTAÇÕES\n(estrutura semântica,\nsem gastar capacidade no ruído)", font_size=15, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.8, min_height=1.6, line_spacing=1.2)
+        rep_box = sized_box("prever REPRESENTAÇÕES\n(estrutura semântica,\nsem gastar capacidade no ruído)", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.8, min_height=1.6, line_spacing=1.2)
         rep_box.shift(RIGHT * 3.4)
         vs_row = VGroup(pixel_box, rep_box)
         assert_on_screen(vs_row, "overview pixels vs reps")
         self.play(FadeIn(pixel_box))
         self.play(FadeIn(rep_box))
-        note1 = Text("a textura exata de uma folha é imprevisível — a estrutura do mundo não precisa ser", font_size=15, color=GRAY_B)
+        note1 = Text("a textura exata de uma folha é imprevisível — a estrutura do mundo não precisa ser", font_size=16, color=GRAY_B)
         note1.next_to(vs_row, DOWN, buff=0.7)
         if note1.width > 12.6:
             note1.scale_to_fit_width(12.6)
@@ -174,8 +216,8 @@ class JEPAOverviewScene(Scene):
             x_length=7.6, y_length=3.0,
             axis_config={"color": GRAY_B, "stroke_width": 2, "include_tip": False},
         ).shift(UP * 0.35)
-        x_label1 = Text("compatibilidade entre x e y", font_size=14, color=GRAY_B).next_to(axes1.x_axis, DOWN, buff=0.2)
-        y_label1 = Text("energia", font_size=14, color=GRAY_B).rotate(90 * DEGREES).next_to(axes1.y_axis, LEFT, buff=0.15)
+        x_label1 = Text("compatibilidade entre x e y", font_size=16, color=GRAY_B).next_to(axes1.x_axis, DOWN, buff=0.2)
+        y_label1 = Text("energia", font_size=16, color=GRAY_B).rotate(90 * DEGREES).next_to(axes1.y_axis, LEFT, buff=0.15)
         collapsed_curve = axes1.plot(lambda x: 2.4, color=OLD, stroke_width=5)
         healthy_curve = axes1.plot(lambda x: 0.3 + 2.3 * (1 - np.exp(-(x ** 2) / 1.2)), color=MECHANISM, stroke_width=5)
 
@@ -185,8 +227,8 @@ class JEPAOverviewScene(Scene):
         self.play(Create(collapsed_curve))
         self.play(Create(healthy_curve))
 
-        legend_a = VGroup(Dot(color=OLD, radius=0.08), Text("colapso: energia achatada — o encoder ignora a entrada e aprende nada", font_size=13, color=GRAY_B)).arrange(RIGHT, buff=0.2)
-        legend_b = VGroup(Dot(color=MECHANISM, radius=0.08), Text("objetivo real: vale de baixa energia só nos pares compatíveis", font_size=13, color=GRAY_B)).arrange(RIGHT, buff=0.2)
+        legend_a = VGroup(Dot(color=OLD, radius=0.08), Text("colapso: energia achatada — o encoder ignora a entrada e aprende nada", font_size=16, color=GRAY_B)).arrange(RIGHT, buff=0.2)
+        legend_b = VGroup(Dot(color=MECHANISM, radius=0.08), Text("objetivo real: vale de baixa energia só nos pares compatíveis", font_size=16, color=GRAY_B)).arrange(RIGHT, buff=0.2)
         legend = VGroup(legend_a, legend_b).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
         legend.next_to(graph1, DOWN, buff=0.4)
         if legend.width > 12.4:
@@ -201,10 +243,10 @@ class JEPAOverviewScene(Scene):
         c3 = callout("LeCun enquadra isso como três famílias de arquitetura", color=MECHANISM)
         self.play(FadeIn(c3))
 
-        je_box = sized_box("Joint-Embedding\n(x, y compatíveis -> embeddings\nsemelhantes; risco: colapso)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        je_box = sized_box("Joint-Embedding\n(x, y compatíveis -> embeddings\nsemelhantes; risco: colapso)", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
         je_box.shift(LEFT * 4.3)
-        gen_box = sized_box("Generativa\n(decoder reconstrói y\na partir de x, pixel a pixel)", font_size=13, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
-        jepa_box = sized_box("Joint-Embedding\nPREDICTIVE (JEPA)\n(predictor prevê a\nrepresentação de y)", font_size=13, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.0, min_height=1.5, line_spacing=1.1)
+        gen_box = sized_box("Generativa\n(decoder reconstrói y\na partir de x, pixel a pixel)", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.25, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        jepa_box = sized_box("Joint-Embedding\nPREDICTIVE (JEPA)\n(predictor prevê a\nrepresentação de y)", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.4, min_width=4.0, min_height=1.5, line_spacing=1.1)
         jepa_box.shift(RIGHT * 4.3)
         families_row = VGroup(je_box, gen_box, jepa_box)
         assert_no_overlap(je_box, gen_box, "overview family boxes je vs gen")
@@ -214,7 +256,7 @@ class JEPAOverviewScene(Scene):
         self.play(FadeIn(gen_box))
         self.play(FadeIn(jepa_box))
         self.play(Indicate(jepa_box, color=MECHANISM, scale_factor=1.08))
-        note2 = Text("JEPA combina o melhor das duas: aprende no espaço de embeddings, mas prediz — não só compara", font_size=15, color=MECHANISM)
+        note2 = Text("JEPA combina o melhor das duas: aprende no espaço de embeddings, mas prediz — não só compara", font_size=16, color=MECHANISM)
         note2.next_to(families_row, DOWN, buff=0.6)
         if note2.width > 12.6:
             note2.scale_to_fit_width(12.6)
@@ -242,7 +284,7 @@ class JEPAOverviewScene(Scene):
         sg_term = loss_formula[3]
 
         box_pred = SurroundingRectangle(pred_term, color=MECHANISM, buff=0.08)
-        label_pred = Text("predictor: prevê a representação do alvo a partir do contexto", font_size=14, color=MECHANISM)
+        label_pred = Text("predictor: prevê a representação do alvo a partir do contexto", font_size=16, color=MECHANISM)
         label_pred.next_to(loss_formula, DOWN, buff=0.7)
         if label_pred.width > 12.4:
             label_pred.scale_to_fit_width(12.4)
@@ -251,7 +293,7 @@ class JEPAOverviewScene(Scene):
         self.play(FadeOut(box_pred), FadeOut(label_pred))
 
         box_sg = SurroundingRectangle(sg_term, color=ENCODER, buff=0.08)
-        label_sg = Text("stop-gradient: o alvo nunca recebe gradiente direto do predictor", font_size=14, color=ENCODER)
+        label_sg = Text("stop-gradient: o alvo nunca recebe gradiente direto do predictor", font_size=16, color=ENCODER)
         label_sg.next_to(loss_formula, DOWN, buff=0.7)
         if label_sg.width > 12.4:
             label_sg.scale_to_fit_width(12.4)
@@ -259,7 +301,7 @@ class JEPAOverviewScene(Scene):
         self.wait(8)
         self.play(FadeOut(box_sg), FadeOut(label_sg))
 
-        note3 = Text("sem o stop-gradient, o sistema inteiro colapsa para a saída constante da Seção anterior", font_size=15, color=GRAY_B)
+        note3 = Text("sem o stop-gradient, o sistema inteiro colapsa para a saída constante da Seção anterior", font_size=16, color=GRAY_B)
         note3.next_to(loss_formula, DOWN, buff=0.7)
         if note3.width > 12.6:
             note3.scale_to_fit_width(12.6)
@@ -271,10 +313,10 @@ class JEPAOverviewScene(Scene):
         c5 = callout("O padrão arquitetural que se repete nos quatro papers", color=MECHANISM)
         self.play(FadeIn(c5))
 
-        ctx = sized_box("Context\nEncoder\n(gera s_x)", font_size=15, color=WHITE, box_color=ENCODER, box_opacity=0.35, min_width=2.7, min_height=1.35, line_spacing=1.05)
+        ctx = sized_box("Context\nEncoder\n(gera s_x)", font_size=16, color=WHITE, box_color=ENCODER, box_opacity=0.35, min_width=2.7, min_height=1.35, line_spacing=1.05)
         ctx.shift(LEFT * 4.2)
         pred = sized_box("Predictor\nP_phi", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.5, min_width=2.4, min_height=1.35, line_spacing=1.05)
-        tgt = sized_box("Target Encoder\n(EMA, stop-grad)", font_size=14, color=WHITE, box_color=ENCODER, box_opacity=0.2, min_width=2.9, min_height=1.35, line_spacing=1.05)
+        tgt = sized_box("Target Encoder\n(EMA, stop-grad)", font_size=16, color=WHITE, box_color=ENCODER, box_opacity=0.2, min_width=2.9, min_height=1.35, line_spacing=1.05)
         tgt.shift(RIGHT * 4.2)
 
         arrow1 = Arrow(ctx.get_right(), pred.get_left(), buff=0.1, color=ENCODER, stroke_width=3)
@@ -294,7 +336,7 @@ class JEPAOverviewScene(Scene):
         self.play(GrowArrow(arrow1), FadeIn(pred))
         self.play(GrowArrow(arrow2), FadeIn(tgt))
         self.play(Create(ema_arrow))
-        note4 = Text("as mesmas cores da fórmula: azul = ramo do contexto, amarelo = predictor", font_size=15, color=MECHANISM)
+        note4 = Text("as mesmas cores da fórmula: azul = ramo do contexto, amarelo = predictor", font_size=16, color=MECHANISM)
         note4.next_to(arch_group, DOWN, buff=0.7)
         if note4.width > 12.6:
             note4.scale_to_fit_width(12.6)
@@ -318,17 +360,17 @@ class JEPAOverviewScene(Scene):
             x_length=7.6, y_length=2.6,
             axis_config={"color": GRAY_B, "stroke_width": 2, "include_tip": False},
         ).shift(DOWN * 1.0)
-        x_label2 = Text("progresso do pré-treino", font_size=13, color=GRAY_B).next_to(axes2.x_axis, DOWN, buff=0.2)
+        x_label2 = Text("progresso do pré-treino", font_size=16, color=GRAY_B).next_to(axes2.x_axis, DOWN, buff=0.2)
         momentum_curve = axes2.plot(lambda x: 0.996 + 0.004 * x, color=MECHANISM, stroke_width=5, x_range=[0, 1])
-        start_label = Text("m = 0,996", font_size=14, color=MECHANISM).next_to(axes2.c2p(0, 0.996), DOWN + LEFT, buff=0.15)
-        end_label = Text("m -> 1,0", font_size=14, color=MECHANISM).next_to(axes2.c2p(1, 1.0), UP + RIGHT, buff=0.12)
+        start_label = Text("m = 0,996", font_size=16, color=MECHANISM).next_to(axes2.c2p(0, 0.996), DOWN + LEFT, buff=0.15)
+        end_label = Text("m -> 1,0", font_size=16, color=MECHANISM).next_to(axes2.c2p(1, 1.0), UP + RIGHT, buff=0.12)
 
         graph2 = VGroup(axes2, x_label2, momentum_curve, start_label, end_label)
         assert_no_overlap(ema_formula, graph2, "overview ema formula vs momentum graph")
         assert_on_screen(graph2, "overview momentum schedule graph")
         self.play(Create(axes2), FadeIn(x_label2))
         self.play(Create(momentum_curve), FadeIn(start_label), FadeIn(end_label))
-        note5 = Text('"usamos um valor de momentum de 0,996 e o aumentamos linearmente até 1,0" — quanto mais perto de 1, mais devagar o alvo muda, gerando alvos estáveis', font_size=13, color=GRAY_B, line_spacing=1.2)
+        note5 = Text('"usamos um valor de momentum de 0,996 e o aumentamos linearmente até 1,0"\nquanto mais perto de 1, mais devagar o alvo muda, gerando alvos estáveis', font_size=16, color=GRAY_B, line_spacing=1.2)
         note5.next_to(graph2, DOWN, buff=0.35)
         if note5.width > 12.6:
             note5.scale_to_fit_width(12.6)
@@ -348,7 +390,7 @@ class JEPAOverviewScene(Scene):
             "  0,996 x 0,5000  +  0,004 x 0,5200  =  0,50008",
             "-> o target encoder mal se move (+0,00008), mesmo o context",
             "   encoder tendo mudado 250x mais (+0,02) — alvo estável",
-        ], font_size=15).shift(DOWN * 0.1)
+        ], font_size=16).shift(DOWN * 0.1)
         assert_on_screen(worked, "overview ema worked example")
         self.play(FadeIn(worked))
         self.wait(16)
@@ -365,7 +407,7 @@ class JEPAOverviewScene(Scene):
             ("V-JEPA 2\n(2025)", "estados futuros\ncondicionados por ação", DECODER),
         ]
         step_boxes = VGroup(*[
-            sized_box(f"{name}\n{desc}", font_size=13, color=WHITE, box_color=color, box_opacity=0.35, min_width=3.0, min_height=1.5, line_spacing=1.1)
+            sized_box(f"{name}\n{desc}", font_size=16, color=WHITE, box_color=color, box_opacity=0.35, min_width=3.0, min_height=1.5, line_spacing=1.1)
             for name, desc, color in steps
         ]).arrange(RIGHT, buff=0.55)
         if step_boxes.width > 12.8:
@@ -378,7 +420,7 @@ class JEPAOverviewScene(Scene):
         assert_on_screen(timeline, "overview timeline")
         self.play(LaggedStart(*[FadeIn(b) for b in step_boxes], lag_ratio=0.2))
         self.play(*[GrowArrow(a) for a in timeline_arrows])
-        note6 = Text("imagem estática -> vídeo -> planejamento de ações no mundo físico —\na mesma predição em representação, aplicada a domínios cada vez mais ricos", font_size=15, color=GRAY_B, line_spacing=1.2)
+        note6 = Text("imagem estática -> vídeo -> planejamento de ações no mundo físico —\na mesma predição em representação, aplicada a domínios cada vez mais ricos", font_size=16, color=GRAY_B, line_spacing=1.2)
         note6.next_to(timeline, DOWN, buff=0.6)
         if note6.width > 12.6:
             note6.scale_to_fit_width(12.6)
@@ -390,10 +432,10 @@ class JEPAOverviewScene(Scene):
         c7b = callout("O que é mascarado, lado a lado, nos três instanciamentos", color=MECHANISM)
         self.play(FadeIn(c7b))
 
-        ijepa_m = sized_box("I-JEPA\nblocos 2D em UMA imagem\n(4 alvos, 1 contexto)", font_size=13, color=WHITE, box_color=ENCODER, box_opacity=0.3, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        ijepa_m = sized_box("I-JEPA\nblocos 2D em UMA imagem\n(4 alvos, 1 contexto)", font_size=16, color=WHITE, box_color=ENCODER, box_opacity=0.3, min_width=4.0, min_height=1.5, line_spacing=1.15)
         ijepa_m.shift(LEFT * 4.3)
-        vjepa_m = sized_box("V-JEPA\ntubos espaço-temporais\nao longo de VÁRIOS frames", font_size=13, color=WHITE, box_color=MECHANISM, box_opacity=0.35, min_width=4.0, min_height=1.5, line_spacing=1.15)
-        vjepa2_m = sized_box("V-JEPA 2\nestado futuro dado o\nestado atual + AÇÕES", font_size=13, color=WHITE, box_color=DECODER, box_opacity=0.3, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        vjepa_m = sized_box("V-JEPA\ntubos espaço-temporais\nao longo de VÁRIOS frames", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.35, min_width=4.0, min_height=1.5, line_spacing=1.15)
+        vjepa2_m = sized_box("V-JEPA 2\nestado futuro dado o\nestado atual + AÇÕES", font_size=16, color=WHITE, box_color=DECODER, box_opacity=0.3, min_width=4.0, min_height=1.5, line_spacing=1.15)
         vjepa2_m.shift(RIGHT * 4.3)
         masking_row = VGroup(ijepa_m, vjepa_m, vjepa2_m)
         assert_no_overlap(ijepa_m, vjepa_m, "overview masking ijepa vs vjepa")
@@ -402,7 +444,7 @@ class JEPAOverviewScene(Scene):
         self.play(FadeIn(ijepa_m))
         self.play(FadeIn(vjepa_m))
         self.play(FadeIn(vjepa2_m))
-        note7 = Text("mesmo predictor, mesma loss — só o domínio do que está \"escondido\" cresce a cada paper", font_size=15, color=GRAY_B)
+        note7 = Text("mesmo predictor, mesma loss — só o domínio do que está \"escondido\" cresce a cada paper", font_size=16, color=GRAY_B)
         note7.next_to(masking_row, DOWN, buff=0.6)
         if note7.width > 12.6:
             note7.scale_to_fit_width(12.6)
@@ -421,7 +463,7 @@ class JEPAOverviewScene(Scene):
             x_length=8.6, y_length=4.0,
             bar_colors=[MECHANISM, ENCODER, OLD],
         ).shift(DOWN * 0.2)
-        y_axis_label = Text("horas de GPU necessárias (normalizado, I-JEPA = 1x)", font_size=13, color=GRAY_B)
+        y_axis_label = Text("horas de GPU necessárias (normalizado, I-JEPA = 1x)", font_size=16, color=GRAY_B)
         y_axis_label.next_to(chart, UP, buff=0.25)
         if y_axis_label.width > 12.4:
             y_axis_label.scale_to_fit_width(12.4)
@@ -440,7 +482,7 @@ class JEPAOverviewScene(Scene):
             "          — mesmo backbone congelado, sem rótulos no treino",
             "V-JEPA 2: zero-shot em braços robóticos Franka reais,",
             "          sem coletar dado nenhum desses robôs específicos",
-        ], font_size=15).shift(DOWN * 0.1)
+        ], font_size=16).shift(DOWN * 0.1)
         assert_on_screen(term, "overview results terminal")
         self.play(FadeIn(term))
         self.wait(16.8)
