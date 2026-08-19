@@ -24,17 +24,20 @@ More groups are planned as separate subdirectories under `scenes/` — e.g. VLMs
 JEPA, generative models, self-supervised learning, GNNs, world-models/RL — each
 following the same one-file-per-scene layout as `scenes/llms/`.
 
-**`scenes/vlms/`** and **`scenes/jepa/`** are also live. `scenes/jepa/00_overview.py`
-is the reference example for a new standard: every future group should open with
-one long-form (~5 minutes), deeply explanatory overview scene — inserted before
-its group's per-paper deep dives — built in a 3Blue1Brown-influenced style: real
-plotted graphs (`Axes`/`.plot()`, `BarChart`) instead of only box diagrams, the
-actual math in `MathTex` with individual terms highlighted and explained one at a
-time (build multi-term formulas as several `MathTex(...)` string arguments so each
-term is a safely indexable submobject — never slice a single compiled `MathTex` by
-guessed character offsets), and at least one worked numeric example plugging real
-numbers into a real formula. Length comes from genuine added depth (more real
-beats, doubled hold times), not padding.
+**`scenes/vlms/`** and **`scenes/jepa/`** are also live. Every group's
+`scenes/<group>/00_overview.py` (`llms`, `vlms`, `jepa`) is now a long-form
+(~4-5 minutes), deeply explanatory overview scene inserted before that group's
+per-paper deep dives, built in a 3Blue1Brown-influenced style: real plotted
+graphs (`Axes`/`.plot()`, `BarChart`) instead of only box diagrams, the actual
+math in `MathTex` with individual terms highlighted and explained one at a
+time (build multi-term formulas as several `MathTex(...)` string arguments so
+each term is a safely indexable submobject — never slice a single compiled
+`MathTex` by guessed character offsets), and at least one worked numeric
+example plugging real numbers into a real formula. Length comes from genuine
+added depth (more real beats, doubled hold times), not padding. The LLMs and
+VLMs overview scenes were added retroactively — the groups' per-paper scenes
+had already shipped — specifically so every group in the series gets the same
+treatment, not just the newest one.
 
 ## Render pipeline, and why every scene file is self-contained
 
@@ -150,6 +153,14 @@ existing scenes — that pattern is exactly how a caption already at 16pt+ can
 still end up shrunk below the floor once its content runs long. `safe_caption`
 asserts instead of shrinking: split the text across lines with a literal `\n`
 (which `Text` honors as a real line break, unlike `Tex`/`MathTex`) or shorten it.
+
+All 6 pre-existing `scenes/vlms/` per-paper scenes were retrofitted to this
+floor in the same pass that added `_assert_font_floor()` — they had 28
+sub-16pt `font_size` uses between them (small in-box labels, mostly), none
+of which had been individually reported broken, but all of which were the
+same latent bug. `scenes/llms/` had none. Re-render any scene after touching
+its header copy — the new assertions will immediately flag anything that
+still needs fixing.
 
 ## How to add a new scene
 

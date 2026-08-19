@@ -32,14 +32,55 @@ def _mono_font():
     return "Fira Code"
 
 
+# Hard legibility floor: text below this renders with visibly uneven
+# letter spacing at the render service's fixed 720p output (a
+# rasterization problem, not a code problem — confirmed to reappear even
+# when nothing else is wrong, e.g. a plain caption Text at font_size=13).
+# Every helper below that creates Text asserts against this floor instead
+# of silently accepting a too-small size, so the failure is a loud,
+# immediate AssertionError at scene-authoring time, not a video a human
+# has to notice is broken after it's already rendered and published.
+MIN_FONT_SIZE = 16
+
+
+def _assert_font_floor(font_size, label=""):
+    assert font_size >= MIN_FONT_SIZE, (
+        f"{label}: font_size={font_size} is below the {MIN_FONT_SIZE}pt legibility "
+        f"floor — text this small reads with visibly uneven letter spacing once "
+        f"actually rendered at the service's fixed 720p output, even though it "
+        f"looks fine as source code. Raise font_size, don't lower the floor."
+    )
+
+
 def callout(text, width=12.6, font_size=26, color=WHITE):
+    _assert_font_floor(font_size, "callout")
     t = Text(text, font_size=font_size, color=color)
     if t.width > width:
         t.scale_to_fit_width(width)
     return t.to_edge(UP, buff=0.4)
 
 
+def safe_caption(text, font_size=16, max_width=12.6, color=WHITE, **kwargs):
+    """The preferred way to build a long running caption/note. Unlike the
+    ad hoc `if t.width > cap: t.scale_to_fit_width(cap)` pattern scattered
+    across earlier scenes — which silently shrinks text below the
+    legibility floor whenever a caption runs long, exactly the bug that
+    kept recurring — this asserts loudly instead, forcing the caption to
+    be shortened or split across lines (with a literal '\\n', which Text
+    honors correctly) rather than auto-shrunk into illegibility."""
+    _assert_font_floor(font_size, "safe_caption")
+    t = Text(text, font_size=font_size, color=color, **kwargs)
+    assert t.width <= max_width, (
+        f"safe_caption: width={t.width:.2f} exceeds max_width={max_width} — "
+        f"shorten the text or split it across lines with '\\n', don't let it "
+        f"auto-shrink below the {MIN_FONT_SIZE}pt floor."
+    )
+    return t
+
+
 def terminal_box(lines, width=11.6, height=None, font_size=18):
+    _assert_font_floor(font_size, "terminal_box")
+
     def make_row(line):
         if line:
             return Text(line, font=_mono_font(), font_size=font_size, color=WHITE)
@@ -62,6 +103,7 @@ def terminal_box(lines, width=11.6, height=None, font_size=18):
 def sized_box(text_str, font_size=16, text_color=None, color=WHITE, box_color=WHITE, fill_color=None,
               fill_opacity=None, box_opacity=0.3, min_width=1.0, min_height=0.6, margin=0.3,
               corner_radius=0.08, line_spacing=1.0):
+    _assert_font_floor(font_size, "sized_box")
     text_color = text_color if text_color is not None else color
     fill_color = fill_color if fill_color is not None else box_color
     fill_opacity = fill_opacity if fill_opacity is not None else box_opacity
@@ -166,7 +208,7 @@ class ViTScene(Scene):
             for i in range(9)
         ]).arrange_in_grid(rows=3, cols=3, buff=0.05)
         grid.shift(LEFT * 3.5)
-        grid_label = Text("imagem\n(patches 16x16)", font_size=15, color=GRAY_B, line_spacing=1.1).next_to(grid, DOWN, buff=0.3)
+        grid_label = Text("imagem\n(patches 16x16)", font_size=16, color=GRAY_B, line_spacing=1.1).next_to(grid, DOWN, buff=0.3)
 
         arrow = Arrow(grid.get_right(), grid.get_right() + RIGHT * 1.3, color=WHITE, stroke_width=3)
 
@@ -174,7 +216,7 @@ class ViTScene(Scene):
             Rectangle(width=0.5, height=0.9, color=ENCODER, fill_color=ENCODER, fill_opacity=0.3)
             for _ in range(9)
         ]).arrange(RIGHT, buff=0.1).next_to(arrow, RIGHT, buff=0.2)
-        tokens_label = Text("sequência de patches achatados", font_size=15, color=GRAY_B).next_to(tokens, DOWN, buff=0.3)
+        tokens_label = Text("sequência de patches achatados", font_size=16, color=GRAY_B).next_to(tokens, DOWN, buff=0.3)
 
         patch_group = VGroup(grid, grid_label, arrow, tokens, tokens_label)
         if patch_group.width > 12.6:
@@ -214,11 +256,11 @@ class ViTScene(Scene):
             for _ in range(5)
         ])
         seq = VGroup(cls_box, *patch_boxes).arrange(RIGHT, buff=0.15)
-        cls_label = Text("[CLS]", font_size=13, color=WHITE).move_to(cls_box)
-        patch_labels = VGroup(*[Text(f"p{i+1}", font_size=13, color=WHITE).move_to(b) for i, b in enumerate(patch_boxes)])
+        cls_label = Text("[CLS]", font_size=16, color=WHITE).move_to(cls_box)
+        patch_labels = VGroup(*[Text(f"p{i+1}", font_size=16, color=WHITE).move_to(b) for i, b in enumerate(patch_boxes)])
 
         pos_row = VGroup(*[
-            Text(f"+pos{i}", font_size=13, color=POSITION).next_to(b, DOWN, buff=0.2)
+            Text(f"+pos{i}", font_size=16, color=POSITION).next_to(b, DOWN, buff=0.2)
             for i, b in enumerate(seq)
         ])
 

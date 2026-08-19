@@ -32,14 +32,55 @@ def _mono_font():
     return "Fira Code"
 
 
+# Hard legibility floor: text below this renders with visibly uneven
+# letter spacing at the render service's fixed 720p output (a
+# rasterization problem, not a code problem — confirmed to reappear even
+# when nothing else is wrong, e.g. a plain caption Text at font_size=13).
+# Every helper below that creates Text asserts against this floor instead
+# of silently accepting a too-small size, so the failure is a loud,
+# immediate AssertionError at scene-authoring time, not a video a human
+# has to notice is broken after it's already rendered and published.
+MIN_FONT_SIZE = 16
+
+
+def _assert_font_floor(font_size, label=""):
+    assert font_size >= MIN_FONT_SIZE, (
+        f"{label}: font_size={font_size} is below the {MIN_FONT_SIZE}pt legibility "
+        f"floor — text this small reads with visibly uneven letter spacing once "
+        f"actually rendered at the service's fixed 720p output, even though it "
+        f"looks fine as source code. Raise font_size, don't lower the floor."
+    )
+
+
 def callout(text, width=12.6, font_size=26, color=WHITE):
+    _assert_font_floor(font_size, "callout")
     t = Text(text, font_size=font_size, color=color)
     if t.width > width:
         t.scale_to_fit_width(width)
     return t.to_edge(UP, buff=0.4)
 
 
+def safe_caption(text, font_size=16, max_width=12.6, color=WHITE, **kwargs):
+    """The preferred way to build a long running caption/note. Unlike the
+    ad hoc `if t.width > cap: t.scale_to_fit_width(cap)` pattern scattered
+    across earlier scenes — which silently shrinks text below the
+    legibility floor whenever a caption runs long, exactly the bug that
+    kept recurring — this asserts loudly instead, forcing the caption to
+    be shortened or split across lines (with a literal '\\n', which Text
+    honors correctly) rather than auto-shrunk into illegibility."""
+    _assert_font_floor(font_size, "safe_caption")
+    t = Text(text, font_size=font_size, color=color, **kwargs)
+    assert t.width <= max_width, (
+        f"safe_caption: width={t.width:.2f} exceeds max_width={max_width} — "
+        f"shorten the text or split it across lines with '\\n', don't let it "
+        f"auto-shrink below the {MIN_FONT_SIZE}pt floor."
+    )
+    return t
+
+
 def terminal_box(lines, width=11.6, height=None, font_size=18):
+    _assert_font_floor(font_size, "terminal_box")
+
     def make_row(line):
         if line:
             return Text(line, font=_mono_font(), font_size=font_size, color=WHITE)
@@ -62,6 +103,7 @@ def terminal_box(lines, width=11.6, height=None, font_size=18):
 def sized_box(text_str, font_size=16, text_color=None, color=WHITE, box_color=WHITE, fill_color=None,
               fill_opacity=None, box_opacity=0.3, min_width=1.0, min_height=0.6, margin=0.3,
               corner_radius=0.08, line_spacing=1.0):
+    _assert_font_floor(font_size, "sized_box")
     text_color = text_color if text_color is not None else color
     fill_color = fill_color if fill_color is not None else box_color
     fill_opacity = fill_opacity if fill_opacity is not None else box_opacity
@@ -127,7 +169,6 @@ def stack_rows(rows, buff=0.5, aligned_edge=LEFT):
         assert_no_overlap(rows[i], rows[i + 1], f"stack_rows: row {i} vs row {i+1}")
     return group
 
-
 class CLIPScene(Scene):
     def construct(self):
         title = Text("Learning Transferable Visual Models", font_size=34, color=WHITE)
@@ -148,7 +189,7 @@ class CLIPScene(Scene):
         img_box.shift(LEFT * 3.5)
         arrow1 = Arrow(img_box.get_right(), img_box.get_right() + RIGHT * 1.5, color=GRAY_B, stroke_width=3)
         cats = VGroup(*[
-            sized_box(c, font_size=14, color=OLD, box_color=OLD, box_opacity=0.15, min_width=1.5, min_height=0.5)
+            sized_box(c, font_size=16, color=OLD, box_color=OLD, box_opacity=0.15, min_width=1.5, min_height=0.5)
             for c in ["gato", "cachorro", "carro", "..."]
         ]).arrange(DOWN, buff=0.15).next_to(arrow1, RIGHT, buff=0.2)
         fixed_group = VGroup(img_box, arrow1, cats)
@@ -166,8 +207,8 @@ class CLIPScene(Scene):
         c1b = callout("A escala que isso viabiliza: milhões de pares (imagem, texto) da internet, sem curadoria")
         self.play(FadeIn(c1b))
 
-        old_scale = sized_box("ImageNet\n1,28 milhão de imagens\n1000 categorias fixas", font_size=15, color=WHITE, box_color=OLD, box_opacity=0.2, min_width=4.4, min_height=1.6, line_spacing=1.25)
-        new_scale = sized_box("CLIP\n400 milhões de pares\nnenhuma categoria fixa", font_size=15, color=WHITE, box_color=MECHANISM, box_opacity=0.35, min_width=4.4, min_height=1.6, line_spacing=1.25)
+        old_scale = sized_box("ImageNet\n1,28 milhão de imagens\n1000 categorias fixas", font_size=16, color=WHITE, box_color=OLD, box_opacity=0.2, min_width=4.4, min_height=1.6, line_spacing=1.25)
+        new_scale = sized_box("CLIP\n400 milhões de pares\nnenhuma categoria fixa", font_size=16, color=WHITE, box_color=MECHANISM, box_opacity=0.35, min_width=4.4, min_height=1.6, line_spacing=1.25)
         scale_row = VGroup(old_scale, new_scale).arrange(RIGHT, buff=1.0)
         assert_on_screen(scale_row, "clip scale comparison")
         self.play(FadeIn(old_scale))
@@ -191,7 +232,7 @@ class CLIPScene(Scene):
         txt_enc.shift(LEFT * 3.2 + DOWN * 1.0)
 
         space = Ellipse(width=5.5, height=3.4, color=MECHANISM, stroke_width=1.5).shift(RIGHT * 2.2)
-        space_label = Text("espaço de embeddings\ncompartilhado", font_size=15, color=MECHANISM, line_spacing=1.1)
+        space_label = Text("espaço de embeddings\ncompartilhado", font_size=16, color=MECHANISM, line_spacing=1.1)
         space_label.next_to(space, UP, buff=0.15)
 
         img_arrow = Arrow(img_enc.get_right(), space.get_left() + UP * 0.6, buff=0.1, color=ENCODER, stroke_width=3)
