@@ -64,11 +64,14 @@ def styled_code_block(src, language="python", font_size=18, **kwargs):
     as an alternative to terminal_box() (llm_manim_helpers.py), which stays
     the right choice for plain command-line transcripts with no syntax
     coloring. NOTE: the Code mobject's constructor kwargs have changed
-    across Manim Community releases — verify `code=`/`code_string=`/
-    `file_name=` and `background=` against whatever version the render
-    service actually runs (see README, "Verifying against the render
-    service") before relying on this in a real render."""
-    return Code(code=src, language=language, font_size=font_size,
+    across Manim Community releases — verified 2026-08-22 against the actual
+    render service: current signature takes `code_string=` (not `code=`),
+    font size only via `paragraph_config={"font_size": ...}` (no direct
+    `font_size=` kwarg), and exposes its lines via `.code_lines` (not
+    `.code`). Re-verify against whatever version the render service runs if
+    this starts failing again — see README, "Verifying against the render
+    service"."""
+    return Code(code_string=src, language=language, paragraph_config={"font_size": font_size},
                 background="rectangle", tab_width=2, **kwargs)
 
 

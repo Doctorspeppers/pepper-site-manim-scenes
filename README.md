@@ -327,6 +327,111 @@ format-2 render:
    filmstrip slot. Illegible text *inside an archived slot* is expected (see
    `archive_to_slot()`'s docstring) — not a bug.
 
+## Visual-explanation toolkit
+
+Format 1 and format 2 (above) are about **pacing and camera** — one scene beat
+after another, or an accumulating mosaic. This section is about **what a single
+beat can actually show**: 4 more copy-paste header files, added specifically to
+enrich how a beat explains both the *math* and the *code/architecture* of a
+paper, not just box-and-arrow diagrams and terminal transcripts.
+
+### Where this comes from, and what it deliberately isn't
+
+These helpers generalize the underlying explanation *logic* found across
+3Blue1Brown's math and AI videos ([3b1b/videos](https://github.com/3b1b/videos)
+— neurons as circles with opacity-coded activation, matrices/vectors as
+colored numbers, attention as a weighted grid and flowing arcs, embeddings via
+dimensionality reduction, architecture as stacked labeled blocks) — **never his
+visual identity**. No color, font, or exact layout was copied; only the idea
+behind each technique, translated to this repo's own color language and to
+Manim Community Edition's actual API (which differs from ManimGL, what 3b1b's
+own repos use — e.g. `LinearTransformationScene`/`DecimalMatrix`/
+`ShowPassingFlash` already exist in Manim CE, so several of these are thin
+wrappers over Manim's own built-ins, same philosophy as `chart_manim_helpers.py`).
+
+| Technique | File | Function(s) |
+|---|---|---|
+| Diverging value→color gradient (shared by matrices, embeddings, activations) | `linalg_manim_helpers.py` | `value_to_color` |
+| Vector as an arrow, with coordinate decomposition | `linalg_manim_helpers.py` | `styled_vector`, `decompose_vector` |
+| Animated matrix–vector product, row by row | `linalg_manim_helpers.py` | `matrix_vector_product_animation` |
+| Grid/plane deforming under a linear transformation | `linalg_manim_helpers.py` | `linear_transform_grid` |
+| Neuron layers + weighted edges | `neural_net_manim_helpers.py` | `build_network` |
+| Activation shown via fill opacity | `neural_net_manim_helpers.py` | `activate_layer` |
+| Signal flash propagating along an edge | `neural_net_manim_helpers.py` | `pulse_edges` |
+| Text breaking into colored token boxes | `transformer_viz_manim_helpers.py` | `tokenize_and_highlight` |
+| Embedding vector as a colored-number column | `transformer_viz_manim_helpers.py` | `embedding_vector` |
+| Embedding space in 3D (post-PCA) + vector arithmetic | `transformer_viz_manim_helpers.py` | `embedding_space_3d`, `vector_arithmetic_demo` |
+| Attention weights as a heatmap grid | `transformer_viz_manim_helpers.py` | `attention_grid` |
+| Attention as weighted arcs between tokens | `transformer_viz_manim_helpers.py` | `attention_arcs` |
+| Architecture as stacked labeled blocks + data flow | `transformer_viz_manim_helpers.py` | `model_block`, `stack_blocks`, `flow_arrow` |
+| Code highlight synced to a diagram beat | `code_viz_manim_helpers.py` | `highlight_code_lines`, `sync_code_with_diagram` |
+| Tensor shape as labeled blocks; reshape/transpose | `code_viz_manim_helpers.py` | `tensor_shape_blocks`, `reshape_animation`, `transpose_animation` |
+
+`attention_grid` specifically exists to replace a block already hand-rolled
+once in `scenes/llms/00_overview.py` (the attention heatmap) — the same
+"stop duplicating this by hand" motivation that produced `styled_bar_chart()`
+in `chart_manim_helpers.py`. That existing scene hasn't been retrofitted to
+use it yet (out of scope for the change that added this toolkit); do so the
+next time that scene is touched.
+
+### Header copy order (extends the format-2 order above)
+
+Depending on which of these a scene actually uses, copy the relevant file(s)
+verbatim, **after** `llm_manim_helpers.py` and (if used) `chart_manim_helpers.py`:
+
+1. `llm_manim_helpers.py` — always first.
+2. `chart_manim_helpers.py` — if plotting/tabulating anything.
+3. `linalg_manim_helpers.py` — if using any math/vector/matrix helper.
+4. `neural_net_manim_helpers.py` — if drawing a neuron/network diagram.
+5. `transformer_viz_manim_helpers.py` — requires (3) above copied first
+   (`value_to_color`) and `chart_manim_helpers.py`'s color/font constants
+   from (1); depends on nothing from (4).
+6. `code_viz_manim_helpers.py` — requires `chart_manim_helpers.py`'s
+   `styled_code_block()` if `highlight_code_lines`/`sync_code_with_diagram`
+   are used against it.
+7. `mosaic_manim_helpers.py` — only for format-2 scenes, per the order above.
+
+As always: copy the **whole file**, not just the function(s) you need, and
+verify against the real render service (below) before trusting a render —
+`DecimalMatrix`/`Code` mobject kwargs are exactly the kind of thing that
+drifts across Manim Community releases.
+
+### Transition and pacing conventions (prose, not code)
+
+These aren't functions to call — they're how to *write* `construct()`, found
+by studying how 3b1b assembles a scene, not just how he draws one shot:
+
+- **Bundle a content change with its camera move in the same `self.play(...)`
+  call**, never sequentially (e.g. a `frame.animate...` zoom alongside the
+  diagram change it's revealing) — a transition reads as one continuous idea,
+  not two separate steps.
+- **Batch 2-4 related animations into one `self.play`** rather than many
+  single-animation calls in a row, so a beat reads as one coherent moment.
+- **`lag_ratio` communicates pacing**: very small (`~0.01`) for a near-
+  simultaneous cascade, larger (`0.1`+) for a visibly staggered reveal.
+- **`run_time` communicates weight**: a beat the viewer should sit with gets
+  a longer `run_time` (2-4s+); a quick shuffle between near-equivalent states
+  gets a short `run_time` with `rate_func=linear` so it doesn't ease in/out
+  like a deliberate flourish.
+- **Build additively; clear only at a real topic pivot.** Default to leaving
+  everything on screen and adding to it (`FadeIn`/`Create` new elements next
+  to what's already there) — `self.play(FadeOut(...))`/`self.clear()` is
+  reserved for genuinely starting a new sub-idea, not for tidying up between
+  closely related beats.
+- **Morph, don't cut**, when one idea becomes a related one:
+  `Transform`/`ReplacementTransform`/`TransformFromCopy`/`FadeTransform`
+  (already used throughout `reshape_animation`/`transpose_animation` above)
+  read as continuity; a hard `FadeOut`+`FadeIn` pair reads as a break, and
+  should be used deliberately for that reason, not by default.
+
+### Verifying against the render service
+
+Same process as format 2 (above) — none of these were added to the render
+service's fixed Manim version, so a `DecimalMatrix`/`Code`/`ThreeDAxes` kwarg
+mismatch is a real risk, not a hypothetical one. Smoke-test at `-ql` against
+`demos/visual_toolkit_demo.py` before trusting any scene that copies these
+headers, exactly as documented above for the mosaic format.
+
 ## Publishing a scene for real (applies to either format)
 
 Everything above renders against the internal render service directly — that
